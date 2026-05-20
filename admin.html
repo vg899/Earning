@@ -84,14 +84,36 @@
   </div>
 
   <!-- ACCESS LOCKED INTERCEPTOR OUTLAY (Default Visible, Hidden purely if verified admin seed) -->
-  <div id="unauthorizedOverlay" class="fixed inset-0 z-50 bg-[#04040a] flex flex-col items-center justify-center p-6 text-center select-none">
-    <div class="max-w-md p-8 rounded-3xl glass-morphic border-2 border-neonPink shadow-[0_0_30px_rgba(255,0,127,0.4)] animate-pulse">
-      <i class="fa-solid fa-shield-halved text-neonPink text-7xl mb-5"></i>
-      <h1 class="font-orbitron font-extrabold text-3xl text-neonPink uppercase tracking-widest mb-3">Locked Security Hangar</h1>
-      <p class="text-zinc-400 font-semibold mb-6">Administrative clearance is required to interact with this operational cluster. Verify that you are signed in coordinates using authorized credentials.</p>
+  <div id="unauthorizedOverlay" class="fixed inset-0 z-50 bg-[#04040a] flex flex-col items-center justify-center p-6 text-center select-text">
+    <div class="max-w-md w-full p-8 rounded-3xl glass-morphic border-2 border-neonPink shadow-[0_0_30px_rgba(255,0,127,0.4)] md:scale-105 transition-all">
+      <i class="fa-solid fa-shield-halved text-neonPink text-6xl mb-4 animate-bounce"></i>
+      <h1 class="font-orbitron font-extrabold text-2xl text-neonPink uppercase tracking-widest mb-1 leading-none">Locked Security Hangar</h1>
+      <span class="text-[10px] text-zinc-500 font-orbitron font-bold tracking-widest uppercase mb-4 block">Clearance Level REQUIRED</span>
+      
+      <p class="text-zinc-400 text-xs font-semibold mb-6 uppercase tracking-wider">Please authorize with credentials mapped under the callsign:</p>
+      
+      <!-- Direct login keys details -->
+      <div class="space-y-4 mb-6 text-left">
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-400 font-orbitron uppercase mb-1.5 font-bold">Administrative Coordinates (Email)</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-zinc-500"><i class="fa-solid fa-envelope text-xs"></i></span>
+            <input type="email" id="adminAuthEmail" value="harshvardhantiwari39@gmail.com" readonly class="w-full bg-black/80 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold tracking-wider text-zinc-300 cursor-not-allowed outline-none select-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-zinc-400 font-orbitron uppercase mb-1.5 font-bold">Security Keypass (Password)</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-zinc-500"><i class="fa-solid fa-lock text-xs"></i></span>
+            <input type="password" id="adminAuthPass" placeholder="••••••••" class="w-full bg-black/60 border border-white/15 rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold tracking-wider focus:outline-none focus:border-neonPink transition-colors text-white">
+          </div>
+        </div>
+      </div>
+
       <div class="flex flex-col gap-3">
-        <a href="user.html" class="px-6 py-3 bg-gradient-to-r from-glowPurple to-glowBlue rounded-xl font-bold font-orbitron text-xs tracking-wider uppercase hover:brightness-110 active:scale-95 transition-all text-white">REVERT TO FLIGHT DECK (USER)</a>
-        <button onclick="checkAdminSecurityInterference()" class="text-xs text-zinc-500 font-bold tracking-widest hover:text-white transition-colors">REFRESH HANDSHAKE CREDENTIAL DETAILS</button>
+        <button onclick="handleAdminAuthDecrypt()" class="w-full py-3.5 bg-gradient-to-r from-neonPink to-glowPurple rounded-xl font-bold font-orbitron text-xs tracking-widest uppercase hover:brightness-110 active:scale-95 transition-all text-white shadow-[0_0_15px_rgba(255,0,127,0.3)]">AUTHORIZED DECRYPT HANDSHAKE</button>
+        <a href="user.html" class="px-6 py-2.5 bg-zinc-900 border border-white/5 hover:bg-zinc-800 rounded-xl font-bold font-orbitron text-[10px] tracking-wider uppercase active:scale-95 transition-all text-zinc-400 hover:text-white">REVERT TO FLIGHT DECK (USER)</a>
+        <button onclick="checkAdminSecurityInterference()" class="text-[10px] text-zinc-500 font-bold tracking-widest hover:text-white transition-colors">REFRESH UPLINK DATA</button>
       </div>
     </div>
   </div>
@@ -534,6 +556,23 @@
         dashboardPanel.classList.add('hidden');
       }
     });
+
+    function handleAdminAuthDecrypt() {
+      const email = document.getElementById('adminAuthEmail').value.trim();
+      const pass = document.getElementById('adminAuthPass').value;
+      if (!email || !pass) {
+        displayToast("Coordinates mismatch: Password cannot remain a blank field.", true);
+        return;
+      }
+      displayToast("Authorizing security keys with high clearance servers...");
+      auth.signInWithEmailAndPassword(email, pass)
+        .then(() => {
+          displayToast("Decryption confirmed! Access granted to Hangar dashboard.");
+        })
+        .catch(err => {
+          displayToast("Access Blocked: " + err.message, true);
+        });
+    }
 
     function checkAdminSecurityInterference() {
       auth.onAuthStateChanged((user) => {
