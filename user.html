@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch & Earn Gaming Hub</title>
+  
+  <!-- Tailwind CDN & Font Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Firebase Compat Core & Modules SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cyberBg: '#06060f',
+            cyberCard: 'rgba(13, 13, 29, 0.75)',
+            glowBlue: '#00f0ff',
+            glowPurple: '#bd00ff',
+            neonGreen: '#39ff14',
+            neonPink: '#ff007f',
+          },
+          fontFamily: {
+            orbitron: ['Orbitron', 'sans-serif'],
+            rajdhani: ['Rajdhani', 'sans-serif'],
+          },
+          boxShadow: {
+            glowBlue: '0 0 15px rgba(0, 240, 255, 0.4)',
+            glowPurple: '0 0 15px rgba(189, 0, 255, 0.4)',
+            glowRgb: '0 0 20px rgba(0, 240, 255, 0.3), 0 0 20px rgba(189, 0, 255, 0.3)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #06060f;
+      font-family: 'Rajdhani', sans-serif;
+      overflow-x: hidden;
+    }
+    .neon-text-blue {
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+    }
+    .neon-text-purple {
+      text-shadow: 0 0 8px rgba(189, 0, 255, 0.6);
+    }
+    .glass-morphic {
+      background: rgba(13, 13, 29, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .neon-border-blue {
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+    }
+    .neon-border-purple {
+      border: 1px solid rgba(189, 0, 255, 0.4);
+      box-shadow: 0 0 10px rgba(189, 0, 255, 0.15);
+    }
+    .rgb-glowing {
+      position: relative;
+    }
+    .rgb-glowing::after {
+      content: '';
+      position: absolute;
+      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      background: linear-gradient(45deg, #00f0ff, #bd00ff, #ff007f, #00f0ff);
+      z-index: -1;
+      border-radius: inherit;
+      background-size: 400%;
+      filter: blur(8px);
+      opacity: 0.8;
+      animation: rgb-glow 12s linear infinite;
+    }
+    @keyframes rgb-glow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .particle-canvas {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: -2;
+      pointer-events: none;
+    }
+    /* Hide scrollbars but keep functional */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #06060f;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #bd00ff;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="text-gray-100 min-h-screen pb-24">
+
+  <!-- Background Particle Field -->
+  <canvas id="particleCanvas" class="particle-canvas"></canvas>
+
+  <!-- Audio Synthesis Warning / Notification Systems -->
+  <div id="toastNotification" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 glass-morphic px-5 py-3 rounded-full flex items-center gap-3 border border-opacity-50 border-glowBlue shadow-glowBlue transition-all duration-300 translate-y-[-100px] opacity-0 text-sm font-semibold">
+    <i id="toastIcon" class="fa-solid fa-circle-info text-glowBlue"></i>
+    <span id="toastText">Testing Warning Banner</span>
+  </div>
+
+  <!-- Fullscreen Level-up Visual Cover -->
+  <div id="levelUpOverlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-90 transition-opacity duration-300 hidden">
+    <div class="text-center p-8 max-w-sm rounded-3xl glass-morphic border-2 border-glowBlue shadow-glowRgb animate-bounce">
+      <h1 class="font-orbitron text-5xl font-black text-glowBlue rotate-[-3deg] uppercase tracking-wider mb-2">Level Up!</h1>
+      <div class="text-glowPurple text-7xl font-black font-orbitron my-6 scale-110" id="levelUpValue">Lv. 2</div>
+      <p class="text-lg text-gray-300 mb-6 font-semibold">You have unlocked higher multipliers and double lucky wheels payouts!</p>
+      <button onclick="dismissLevelUp()" class="px-8 py-3 bg-gradient-to-r from-glowBlue to-glowPurple rounded-full text-white font-bold font-orbitron tracking-widest hover:brightness-125 hover:shadow-glowRgb transition-all">CLAIM REWARDS</button>
+    </div>
+  </div>
+
+  <!-- Cheat Detected Warning Modal -->
+  <div id="cheatOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-95 hidden">
+    <div class="glass-morphic border-2 border-neonPink shadow-[0_0_25px_rgba(255,0,127,0.5)] p-8 max-w-sm rounded-2xl text-center">
+      <i class="fa-solid fa-triangle-exclamation text-neonPink text-6xl mb-4 animate-pulse"></i>
+      <h2 class="font-orbitron font-bold text-2xl text-neonPink uppercase mb-2">Cheat Lock Triggered</h2>
+      <p class="text-gray-300 text-sm mb-6">Our anti-farming metrics detected repeated window unfocusing or multi-device switching. This session has been suspended. Stay active inside the tab to resume.</p>
+      <button onclick="resumeUserSession()" class="px-6 py-2.5 bg-neonPink text-white font-bold rounded-lg hover:bg-opacity-80 transition-all font-orbitron text-xs">I AM ACTIVE (RESUBSCRIBE)</button>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATION PANELS (Hidden if logged-in) -->
+  <div id="authSection" class="relative z-10 flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-md glass-morphic p-8 rounded-3xl shadow-glowRgb border border-glowPurple/30 relative">
+      <div class="text-center mb-8">
+        <div class="inline-block bg-gradient-to-r from-glowBlue to-glowPurple p-2.5 rounded-2xl mb-3 shadow-glowBlue">
+          <i class="fa-solid fa-gamepad text-3xl text-white"></i>
+        </div>
+        <h1 class="font-orbitron text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-glowBlue to-glowPurple">CYBER HUB</h1>
+        <p class="text-sm text-gray-400 font-semibold tracking-wide mt-1 uppercase">Watch & Earn • Interactive Mini-Games</p>
+      </div>
+
+      <!-- Auth Selection Tabs -->
+      <div class="flex bg-black/40 p-1.5 rounded-xl border border-white/5 mb-6">
+        <button id="tabLoginBtn" onclick="toggleAuthTab('login')" class="w-1/2 py-2 text-sm font-semibold rounded-lg font-orbitron transition-all bg-gradient-to-r from-glowBlue/20 to-glowPurple/20 text-glowBlue border border-glowBlue/40">LOGIN</button>
+        <button id="tabSignupBtn" onclick="toggleAuthTab('signup')" class="w-1/2 py-2 text-sm font-semibold rounded-lg font-orbitron text-gray-400 hover:text-white transition-all">SIGNUP</button>
+      </div>
+
+      <!-- Login Form Panel -->
+      <div id="loginFormPanel" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">Email Coordinates</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-envelope text-xs"></i></span>
+            <input type="email" id="loginEmail" placeholder="pilot@cyber.net" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-glowBlue transition-colors text-white">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">Security Keypass</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-lock text-xs"></i></span>
+            <input type="password" id="loginPass" placeholder="••••••••" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-glowBlue transition-colors text-white">
+          </div>
+        </div>
+        <button onclick="handleLoginSubmit()" class="w-full py-4 bg-gradient-to-r from-glowBlue to-glowPurple rounded-xl text-white font-orbitron font-bold tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-glowBlue hover:shadow-glowRgb mt-2">INITIALIZE SECURE ACCESS</button>
+      </div>
+
+      <!-- Registrations Form Panel -->
+      <div id="signupFormPanel" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">Desired Callsign (Username)</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-user-astronaut text-xs"></i></span>
+            <input type="text" id="signupUser" placeholder="CyberWarrior" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-glowBlue transition-colors text-white">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">Email Address</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-envelope text-xs"></i></span>
+            <input type="email" id="signupEmail" placeholder="recruit@cyber.net" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-glowBlue transition-colors text-white">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">Create Password</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-lock text-xs"></i></span>
+            <input type="password" id="signupPass" placeholder="Min 6 characters" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-glowBlue transition-colors text-white">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">Uplink Referral Code (Optional)</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-500"><i class="fa-solid fa-xs fa-terminal-arrow-only"></i></span>
+            <input type="text" id="signupReferral" placeholder="AAAAAA" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-glowBlue transition-colors text-white uppercase">
+          </div>
+        </div>
+        <button onclick="handleSignupSubmit()" class="w-full py-4 bg-gradient-to-r from-glowPurple to-glowBlue rounded-xl text-white font-orbitron font-bold tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-glowPurple hover:shadow-glowRgb mt-2">DEPLOY PROFILE RECORD</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION CONTAINER (Active when authenticated) -->
+  <div id="mainDashboardSection" class="max-w-md mx-auto px-4 pt-4 hidden relative z-10 transition-opacity duration-300">
+    
+    <!-- Top Cyber Deck HUD -->
+    <div class="glass-morphic border border-white/10 rounded-2xl p-4 mb-5 flex items-center justify-between shadow-glowPurple relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-24 h-24 bg-glowPurple opacity-10 blur-xl"></div>
+      
+      <div class="flex items-center gap-3">
+        <div id="userAvatarContainer" class="relative group cursor-pointer" onclick="navigateTo('profile')">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-glowBlue to-glowPurple p-0.5 shadow-glowBlue">
+            <img id="hudAvatarPic" src="https://api.dicebear.com/7.x/bottts/svg?seed=Commander" alt="Pilot Avatar" class="w-full h-full object-cover bg-black rounded-lg">
+          </div>
+          <div id="userStreakCounter" class="absolute -bottom-1 -right-1 flex items-center justify-center bg-neonPink text-white font-orbitron text-[10px] px-1.5 py-0.5 rounded-full border border-black shadow">
+            <i class="fa-solid fa-fire text-[9.5px] mr-0.5 text-yellow-300"></i><span id="hudStreakDays">1</span>
+          </div>
+        </div>
+        
+        <div>
+          <div class="flex items-center gap-1.5 mb-1.5">
+            <span id="hudUserName" class="font-orbitron font-bold text-sm tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-glowBlue to-white">LOADING PILOT</span>
+            <span id="adminHangerLink" class="hidden text-[10px] px-1.5 py-0.5 bg-glowPurple/30 border border-glowPurple text-glowPurple rounded font-orbitron font-bold uppercase"><a href="admin.html">Hangar</a></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-orbitron font-bold px-1.5 py-0.5 bg-black text-glowBlue border border-glowBlue/40 rounded">Lv.<span id="hudLevelVal">1</span></span>
+            <div class="w-20 bg-black/80 h-1.5 rounded-full overflow-hidden border border-white/5 relative">
+              <div id="hudXpBar" class="bg-gradient-to-r from-glowBlue to-glowPurple h-full" style="width: 10%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Realtime Bank Matrix -->
+      <div class="text-right">
+        <div class="flex items-center justify-end gap-1.5">
+          <span id="hudBalanceCoins" class="font-orbitron font-black text-2xl tracking-tighter text-glowBlue animate-pulse">0</span>
+          <div class="w-5 h-5 flex items-center justify-center bg-cyan-900 rounded-lg group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-coins text-xs text-glowBlue"></i>
+          </div>
+        </div>
+        <div class="text-[10px] text-gray-400 font-orbitron uppercase tracking-widest mt-0.5">NET CREDITS</div>
+      </div>
+    </div>
+
+    <!-- MAIN BULLETIN BOARD BANNER -->
+    <div id="globalMarqueeBanner" class="bg-black/80 border border-glowPurple/20 text-glowPurple rounded-lg p-2 mb-4 text-xs font-semibold overflow-hidden relative flex items-center">
+      <i class="fa-solid fa-microchip text-xs mr-2 animate-pulse pl-1"></i>
+      <marquee behavior="scroll" direction="left" id="liveBulletinAlert">WELCOME TO CYBER WATCH & EARN PLATFORM. WATCH VIDEOS & CLAIM FREE COINS DAILY!</marquee>
+    </div>
+
+    <!-- ================= ROUTE 1: DASHBOARD ================= -->
+    <div id="view-dashboard" class="route-view space-y-5">
+      
+      <!-- Stay Online Real-Time Earning Engine -->
+      <div class="glass-morphic border border-glowBlue/35 shadow-glowBlue rounded-2xl p-5 relative overflow-hidden text-center">
+        <div class="absolute -top-12 -left-12 w-28 h-28 bg-glowBlue opacity-10 blur-xl"></div>
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-left">
+            <h2 class="font-orbitron font-bold text-lg text-glowBlue">Stay Online Earnings</h2>
+            <p class="text-xs text-gray-400 font-medium">Keep the tab open to acquire automated credits</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 bg-neonGreen/15 border border-neonGreen/40 rounded-full text-neonGreen font-orbitron font-bold uppercase tracking-wider animate-pulse">ACTIVE FEED</span>
+        </div>
+
+        <!-- Interactive Animated Clock Timer -->
+        <div class="relative w-40 h-40 mx-auto my-6 flex items-center justify-center">
+          <svg class="w-full h-full transform -rotate-90">
+            <circle cx="80" cy="80" r="70" class="stroke-cyberBg fill-transparent stroke-gray-800" stroke-width="6" />
+            <circle cx="80" cy="80" r="70" id="onlineTimerSvgCircle" class="stroke-glowBlue fill-transparent transition-all duration-1000" stroke-width="6" stroke-dasharray="440" stroke-dashoffset="440" stroke-linecap="round" />
+          </svg>
+          <div class="absolute flex flex-col items-center">
+            <span id="onlineTimerText" class="font-orbitron font-black text-3xl tracking-wide text-glowBlue">01:00</span>
+            <span class="text-[10px] text-gray-400 font-orbitron uppercase tracking-widest mt-1">Acquiring</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between bg-black/40 border border-white/5 p-3 rounded-xl mb-1 text-xs text-gray-400">
+          <span>Auto System Rate:</span>
+          <span class="font-orbitron text-glowBlue font-bold">+<span id="settingCoinsPerMin">15</span> Coins/Min</span>
+        </div>
+      </div>
+
+      <!-- Quick Claim Dynamic Chevrons Grid -->
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Daily Chest -->
+        <button onclick="claimDailyChest()" class="glass-morphic border border-glowPurple/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center relative group active:scale-95 transition-all outline-none">
+          <div class="w-12 h-12 bg-glowPurple/10 border border-glowPurple/40 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-toolbox text-glowPurple text-xl"></i>
+          </div>
+          <span class="font-orbitron text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-glowPurple to-purple-400 uppercase tracking-wide">DAILY CHEST</span>
+          <span id="dailyChestStatusText" class="text-[10px] text-gray-400 font-semibold mt-1">AVAILABLE NOW</span>
+        </button>
+
+        <!-- Referral Boost link -->
+        <button onclick="navigateTo('profile')" class="glass-morphic border border-glowBlue/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center relative group active:scale-95 transition-all outline-none">
+          <div class="w-12 h-12 bg-glowBlue/10 border border-glowBlue/40 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-users-viewfinder text-glowBlue text-xl animate-pulse"></i>
+          </div>
+          <span class="font-orbitron text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-glowBlue to-cyan-400 uppercase tracking-wide">REFERRAL LINK</span>
+          <span class="text-[10px] text-neonGreen font-semibold mt-1">+250 Coins Tier</span>
+        </button>
+      </div>
+
+      <!-- Daily Core Missions Progress -->
+      <div class="glass-morphic border border-white/10 rounded-2xl p-5 relative overflow-hidden">
+        <h2 class="font-orbitron font-bold text-md text-white border-b border-white/10 pb-3 uppercase tracking-wider">Daily Special Ops</h2>
+        <div id="dailyMissionsContainer" class="divide-y divide-white/5 mt-4 space-y-4">
+          <!-- Dyn Generated -->
+          <div class="flex items-center justify-between pt-2">
+            <p class="text-sm text-gray-400">Loading daily tasks...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ROUTE 2: VIDEOS ================= -->
+    <div id="view-videos" class="route-view space-y-5 hidden">
+      <div class="glass-morphic border border-white/10 rounded-2xl p-5">
+        <h2 class="font-orbitron font-bold text-lg text-glowBlue uppercase">Watch & Earn Terminal</h2>
+        <p class="text-xs text-gray-400 mt-1">Interact with video streaming channels to claim instant coin multipliers.</p>
+
+        <!-- Categories Filters -->
+        <div class="flex gap-2 overflow-x-auto pb-2 mt-4" id="videoFilters">
+          <button onclick="filterVideos('all')" class="px-4 py-1.5 text-xs font-bold rounded-lg font-orbitron tracking-wide border border-glowBlue bg-glowBlue/15 text-glowBlue transition-all">ALL CHANNELS</button>
+          <button onclick="filterVideos('gaming')" class="px-4 py-1.5 text-xs font-bold rounded-lg font-orbitron tracking-wide border border-white/10 bg-black/40 text-gray-400 hover:text-white transition-all">GAMING</button>
+          <button onclick="filterVideos('movies')" class="px-4 py-1.5 text-xs font-bold rounded-lg font-orbitron tracking-wide border border-white/10 bg-black/40 text-gray-400 hover:text-white transition-all">TRAILERS</button>
+          <button onclick="filterVideos('music')" class="px-4 py-1.5 text-xs font-bold rounded-lg font-orbitron tracking-wide border border-white/10 bg-black/40 text-gray-400 hover:text-white transition-all">MUSIC</button>
+        </div>
+      </div>
+
+      <!-- YouTube Global Core Embedded Frame Card -->
+      <div id="youtubePlayerCard" class="glass-morphic border border-glowBlue/40 rounded-2xl overflow-hidden shadow-glowBlue relative hidden">
+        <div class="bg-black relative aspect-video" id="playerWrap">
+          <div id="youtubeLiveFrame"></div>
+        </div>
+        <div class="p-4 bg-black/80 flex items-center justify-between">
+          <div>
+            <span id="activeVideoTitle" class="font-orbitron text-xs font-bold text-white block truncate w-60">SELECT VIDEO BELOW</span>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-[10px] font-orbitron px-1.5 py-0.5 bg-glowPurple/30 border border-glowPurple text-glowPurple rounded font-bold uppercase"><i class="fa-solid fa-clock mr-1"></i><span id="activeVideoSeconds">30</span>S REQUIRES</span>
+              <span class="text-[10px] text-neonGreen font-semibold"><i class="fa-solid fa-dollar-sign mr-0.5"></i>+<span id="activeVideoCoins">50</span> Coins Promo</span>
+            </div>
+          </div>
+          
+          <!-- Sync Progress Dial Ring -->
+          <div class="relative w-12 h-12 flex items-center justify-center">
+            <svg class="w-full h-full transform -rotate-90">
+              <circle cx="24" cy="24" r="18" class="stroke-cyberBg fill-transparent stroke-gray-700" stroke-width="3" />
+              <circle cx="24" cy="24" r="18" id="videoTimerSvgRing" class="stroke-neonGreen fill-transparent transition-all duration-1000" stroke-width="3" stroke-dasharray="113" stroke-dashoffset="113" stroke-linecap="round" />
+            </svg>
+            <span id="videoProgressPercentage" class="absolute font-orbitron text-[10px] font-black text-neonGreen">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vertical Playlists Stream -->
+      <div id="videosDashboardList" class="space-y-4">
+        <!-- Dynamic playlist streams -->
+        <p class="text-sm text-gray-400 text-center py-6">Connecting Live TV Stream...</p>
+      </div>
+    </div>
+
+    <!-- ================= ROUTE 3: GAMES ================= -->
+    <div id="view-games" class="route-view space-y-5 hidden">
+      <div class="glass-morphic border border-white/10 rounded-2xl p-5 mb-3">
+        <h2 class="font-orbitron font-bold text-lg text-glowPurple uppercase">Mini-Games Hangar</h2>
+        <p class="text-xs text-gray-400 mt-1">Acquire extra credits directly using mechanical skill and luck wheels.</p>
+      </div>
+
+      <!-- Games Grid Selector -->
+      <div class="grid grid-cols-2 gap-4" id="gamesSelectionSelector">
+        <!-- Wheel Spin -->
+        <button onclick="launchMiniGame('spin')" class="glass-morphic border border-glowBlue/25 rounded-2xl p-4 flex flex-col items-center justify-center text-center group active:scale-95 transition-all outline-none">
+          <div class="w-14 h-14 bg-glowBlue/10 border border-glowBlue/30 rounded-full flex items-center justify-center mb-3">
+            <i class="fa-solid fa-dharmachakra text-glowBlue text-2xl animate-spin" style="animation-duration: 4s"></i>
+          </div>
+          <span class="font-orbitron text-xs font-bold text-white tracking-wide uppercase">LUCKY SPIN WHEEL</span>
+          <span class="text-[9.5px] text-gray-400 mt-1">WIN UP TO +300 COINS</span>
+        </button>
+
+        <!-- Scratch Card -->
+        <button onclick="launchMiniGame('scratch')" class="glass-morphic border border-glowPurple/25 rounded-2xl p-4 flex flex-col items-center justify-center text-center group active:scale-95 transition-all outline-none">
+          <div class="w-14 h-14 bg-glowPurple/10 border border-glowPurple/30 rounded-full flex items-center justify-center mb-3">
+            <i class="fa-solid fa-receipt text-glowPurple text-2xl"></i>
+          </div>
+          <span class="font-orbitron text-xs font-bold text-white tracking-wide uppercase">LUCKY SCRATCHER</span>
+          <span class="text-[9.5px] text-gray-400 mt-1">SCRATCH & WIN MULTIPLE</span>
+        </button>
+
+        <!-- Dynamic Tap Coin Game -->
+        <button onclick="launchMiniGame('tap')" class="glass-morphic border border-glowPurple/25 rounded-2xl p-4 flex flex-col items-center justify-center text-center group active:scale-95 transition-all outline-none">
+          <div class="w-14 h-14 bg-neonPink/10 border border-neonPink/30 rounded-full flex items-center justify-center mb-3">
+            <i class="fa-solid fa-gamepad text-neonPink text-2xl"></i>
+          </div>
+          <span class="font-orbitron text-xs font-bold text-white tracking-wide uppercase">TAP COIN BOX</span>
+          <span class="text-[9.5px] text-gray-400 mt-1">SPEED PRESS BONUS CHALLENGE</span>
+        </button>
+
+        <!-- Fast Tap -->
+        <button onclick="launchMiniGame('fastTap')" class="glass-morphic border border-glowBlue/25 rounded-2xl p-4 flex flex-col items-center justify-center text-center group active:scale-95 transition-all outline-none">
+          <div class="w-14 h-14 bg-neonGreen/10 border border-neonGreen/30 rounded-full flex items-center justify-center mb-3">
+            <i class="fa-solid fa-bolt text-neonGreen text-2xl animate-pulse"></i>
+          </div>
+          <span class="font-orbitron text-xs font-bold text-white tracking-wide uppercase">REFLEX ORB</span>
+          <span class="text-[9.5px] text-gray-400 mt-1">HIGH SPEED GRID TARGETS</span>
+        </button>
+      </div>
+
+      <!-- ================= PLAYGROUND GAME PANELS (Dynamic) ================= -->
+      <!-- GAME 1: LUCKY SPIN -->
+      <div id="gamePanel-spin" class="glass-morphic border border-glowBlue/40 rounded-3xl p-6 relative hidden text-center space-y-4">
+        <button onclick="closeActiveGame()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-square-xmark text-xl"></i></button>
+        <h3 class="font-orbitron font-bold text-md text-glowBlue uppercase">Lucky Spin Wheel</h3>
+        
+        <div class="relative w-64 h-64 mx-auto my-4">
+          <canvas id="wheelCanvas" width="256" height="256" class="rounded-full shadow-glowBlue"></style>
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <!-- Pin indicator -->
+            <div class="absolute -top-3 w-6 h-6 bg-glowPurple border-2 border-white rotate-45 transform skew-x-5" style="z-index: 10;"></div>
+            <div class="w-10 h-10 bg-black rounded-full border-2 border-glowBlue shadow flex items-center justify-center"><i class="fa-solid fa-xs fa-chess-knight text-glowBlue"></i></div>
+          </div>
+        </div>
+
+        <button id="spinBtnPlay" onclick="spinTheWheel()" class="px-8 py-3 bg-gradient-to-r from-glowBlue to-glowPurple rounded-full text-white font-orbitron font-bold tracking-widest hover:brightness-110 active:scale-95 transition-all inline-block">SPIN THE WHEEL</button>
+      </div>
+
+      <!-- GAME 2: SCRATCH CARD -->
+      <div id="gamePanel-scratch" class="glass-morphic border border-glowPurple/40 rounded-3xl p-6 relative hidden text-center space-y-4">
+        <button onclick="closeActiveGame()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-square-xmark text-xl"></i></button>
+        <h3 class="font-orbitron font-bold text-md text-glowPurple uppercase">Lucky Scratches</h3>
+        <p class="text-xs text-gray-400">Drag/wipe across the surface to reveal the hidden hologram reward.</p>
+
+        <div class="relative w-64 h-48 mx-auto my-6 bg-black rounded-2xl border border-white/10 select-none overflow-hidden flex items-center justify-center">
+          <div class="absolute z-0 text-center space-y-1">
+            <span class="text-xs font-orbitron text-gray-400 uppercase tracking-widest">COIN MULTIPLIER UNLOCKED</span>
+            <div class="text-transparent bg-clip-text bg-gradient-to-r from-glowBlue to-glowPurple font-black font-orbitron text-3xl my-1" id="scratchRewardMsg">150 COINS</div>
+            <span class="text-[10px] text-neonGreen font-semibold uppercase tracking-wider">Credits Sent Direct!</span>
+          </div>
+          <canvas id="scrCanvas" width="256" height="192" class="absolute inset-0 z-10 cursor-pointer"></canvas>
+        </div>
+        <button onclick="resetScratcher()" class="px-6 py-2 border border-glowPurple/50 text-glowPurple rounded-lg text-xs font-orbitron font-semibold hover:bg-glowPurple/15 transition-all inline-block uppercase">Refresh Scratcher</button>
+      </div>
+
+      <!-- GAME 3: TAP CHALLENGE -->
+      <div id="gamePanel-tap" class="glass-morphic border border-neonPink/40 rounded-3xl p-6 relative hidden text-center space-y-5">
+        <button onclick="closeActiveGame()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-square-xmark text-xl"></i></button>
+        <h3 class="font-orbitron font-bold text-md text-neonPink uppercase">Tap Credit Engine</h3>
+        
+        <div class="flex justify-between max-w-xs mx-auto text-xs font-orbitron font-bold">
+          <span class="text-gray-400">TIMER: <span id="tapTimerVal" class="text-neonPink">15</span>S</span>
+          <span class="text-gray-400">MAPPING COINS: <span id="tapCoinsVal" class="text-glowBlue">0</span></span>
+        </div>
+
+        <div class="relative w-44 h-44 mx-auto my-2 flex items-center justify-center rounded-full bg-black border border-white/5 shadow-glowPurple select-none">
+          <button id="tapClickOrb" onclick="triggerTapGameClick()" class="w-36 h-36 rounded-full bg-gradient-to-tr from-neonPink to-glowPurple flex flex-col items-center justify-center border-4 border-black text-white hover:scale-105 active:scale-95 transition-all outline-none">
+            <i class="fa-solid fa-coins text-4xl animate-bounce mb-1"></i>
+            <span class="font-orbitron font-black tracking-wider text-xs">TAP FAST!</span>
+          </button>
+        </div>
+        <button id="tapStartBtn" onclick="startTapGame()" class="px-8 py-3 bg-neonPink rounded-xl text-white font-orbitron font-bold tracking-wider hover:brightness-110 active:scale-95 transition-all inline-block uppercase text-xs">Start Generator</button>
+      </div>
+
+      <!-- GAME 4: FAST TARGET REFLEX -->
+      <div id="gamePanel-fastTap" class="glass-morphic border border-neonGreen/40 rounded-3xl p-6 relative hidden text-center space-y-4">
+        <button onclick="closeActiveGame()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fa-solid fa-square-xmark text-xl"></i></button>
+        <h3 class="font-orbitron font-bold text-md text-neonGreen uppercase">Hologram Reflex Orb</h3>
+        
+        <div class="flex justify-between text-xs font-orbitron font-bold text-gray-400">
+          <span>TIME LEFT: <span id="refTimerVal" class="text-neonPink">20</span>S</span>
+          <span>HITS: <span id="refHitsVal" class="text-neonGreen">0</span></span>
+        </div>
+
+        <div class="relative w-full aspect-square max-w-xs mx-auto bg-black rounded-2xl border border-white/10 overflow-hidden" id="reflexStageZone">
+          <!-- Dyn Spawned target orb -->
+          <button id="reflexDotTarget" onclick="registerReflexHit()" class="absolute w-10 h-10 rounded-full bg-gradient-to-tr from-glowBlue to-neonGreen border border-white shadow-glowBlue hidden animate-pulse outline-none"></button>
+          <div id="reflexStartMask" class="absolute inset-0 flex flex-col items-center justify-center bg-black/95">
+            <button onclick="startReflexGame()" class="px-6 py-2.5 bg-neonGreen text-black font-semibold font-orbitron text-xs tracking-wider rounded-lg outline-none">START TEST</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ROUTE 4: WALLET ================= -->
+    <div id="view-wallet" class="route-view space-y-5 hidden">
+      <!-- High contrast Bank ledger Card -->
+      <div class="glass-morphic border border-glowBlue shadow-glowRgb rounded-2xl p-5 relative overflow-hidden" id="walletInfoBannerCard">
+        <div class="absolute -bottom-10 -left-10 w-24 h-24 bg-glowPurple opacity-15 blur-xl"></div>
+        <div class="flex items-center justify-between">
+          <span class="font-orbitron text-xs text-gray-300 font-bold tracking-widest uppercase">Earning Analytics Net Balance</span>
+          <i class="fa-solid fa-credit-card text-glowBlue text-lg"></i>
+        </div>
+        
+        <div class="my-5 flex items-baseline gap-2">
+          <span id="walletCoinAmount" class="font-orbitron font-black text-4xl text-glowBlue tracking-tighter">0</span>
+          <span class="text-xs text-neonGreen font-semibold uppercase tracking-wider font-orbitron">(~ ₹<span id="walletInrVal">0.00</span> INR)</span>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-gray-400 border-t border-white/10 pt-3">
+          <span>Exchange Rate Model:</span>
+          <span class="font-orbitron font-bold text-white">1000 Coins = ₹10.00</span>
+        </div>
+      </div>
+
+      <!-- Withdraw Ledger -->
+      <div class="glass-morphic border border-white/10 rounded-2xl p-5">
+        <h3 class="font-orbitron font-bold text-md text-white border-b border-white/10 pb-3 uppercase tracking-wider">Debit Portal (Cashout)</h3>
+        
+        <div class="space-y-4 mt-4">
+          <!-- Gateway Provider Selector -->
+          <div>
+            <label class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">Transfer Gateway</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="selectWithdrawMethod('UPI')" id="methodUPI" class="py-2 text-xs font-bold rounded-lg font-orbitron tracking-wider border border-glowBlue bg-glowBlue/10 text-glowBlue">UPI DECK</button>
+              <button onclick="selectWithdrawMethod('PAYTM')" id="methodPAYTM" class="py-2 text-xs font-bold rounded-lg font-orbitron tracking-wider border border-white/10 bg-black/40 text-gray-400">PAYTM CIG</button>
+              <button onclick="selectWithdrawMethod('GIFTCARD')" id="methodGIFTCARD" class="py-2 text-xs font-bold rounded-lg font-orbitron tracking-wider border border-white/10 bg-black/40 text-gray-400">G-GIFTCARD</button>
+            </div>
+          </div>
+
+          <!-- Payout Address Coordinates -->
+          <div>
+            <label id="withdrawInputLabel" class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">UPI ADDRESS COORDINATE</label>
+            <input type="text" id="withdrawWalletAddress" placeholder="example@paytm" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-xs font-medium focus:outline-none focus:border-glowBlue text-white font-orbitron">
+          </div>
+
+          <!-- Withdrawal Amount Slider/Inputs -->
+          <div>
+            <label class="block text-xs font-bold text-gray-400 font-orbitron uppercase mb-1">CASH DEBIT TARGET</label>
+            <select id="withdrawalTierSelect" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-xs focus:outline-none focus:border-glowBlue text-white font-orbitron">
+              <option value="50">₹50 (Requires 5,000 Coins)</option>
+              <option value="100">₹100 (Requires 10,000 Coins)</option>
+              <option value="250">₹250 (Requires 25,000 Coins)</option>
+              <option value="500">₹500 (Requires 50,000 Coins)</option>
+            </select>
+          </div>
+
+          <button onclick="submitWithdrawalRequest()" class="w-full py-3.5 bg-gradient-to-r from-glowBlue to-glowPurple text-white font-orbitron font-bold tracking-widest text-xs rounded-xl hover:brightness-110 active:scale-95 transition-all outline-none">INITIALIZE CASHOUT TRANSACTION</button>
+        </div>
+      </div>
+
+      <!-- Live Transaction History -->
+      <div class="glass-morphic border border-white/10 rounded-2xl p-5">
+        <h3 class="font-orbitron font-bold text-md text-white border-b border-white/10 pb-3 uppercase tracking-wider">Debit Ledger Logs</h3>
+        <div id="transactionHistoryContainer" class="divide-y divide-white/5 mt-4 space-y-3">
+          <p class="text-xs text-gray-400 py-3 text-center">No transactions registered in this grid yet</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ROUTE 5: LEADERBOARD ================= -->
+    <div id="view-leaderboard" class="route-view space-y-5 hidden">
+      <div class="glass-morphic border border-white/10 rounded-2xl p-5 text-center relative overflow-hidden">
+        <div class="absolute -top-12 -right-12 w-28 h-28 bg-glowPurple opacity-10 blur-xl"></div>
+        <h2 class="font-orbitron font-bold text-lg text-glowPurple uppercase tracking-widest">Global Master Deck</h2>
+        <p class="text-xs text-gray-400 mt-1">Real-time rank list of premium earning nodes active on database</p>
+      </div>
+
+      <!-- Custom top 3 banner pod -->
+      <div id="leaderboardListingGrid" class="space-y-2">
+        <!-- Dyn Generated -->
+        <p class="text-sm text-gray-400 text-center py-6">Connecting to ledger grid...</p>
+      </div>
+    </div>
+
+    <!-- ================= ROUTE 6: PROFILE ================= -->
+    <div id="view-profile" class="route-view space-y-5 hidden">
+      <!-- Profile Customization -->
+      <div class="glass-morphic border border-white/10 rounded-2xl p-5 text-center relative">
+        <div class="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-tr from-glowBlue to-glowPurple p-0.5 relative mb-4">
+          <img id="profileAvatarPic" src="https://api.dicebear.com/7.x/bottts/svg?seed=Commander" alt="Pilot Pic" class="w-full h-full object-cover bg-black rounded-xl">
+        </div>
+        
+        <div>
+          <!-- Username Modification interface -->
+          <div class="flex items-center justify-center gap-2 max-w-xs mx-auto mb-2">
+            <input type="text" id="usernameEditInput" class="bg-black/80 text-center font-orbitron font-bold text-lg text-transparent bg-clip-text bg-gradient-to-r from-glowBlue to-white border border-transparent hover:border-white/10 focus:border-glowBlue px-2 py-1 rounded w-44 outline-none">
+            <button onclick="saveProfileUsername()" class="text-xs text-glowBlue hover:text-white transition-all font-semibold font-orbitron inline-block uppercase bg-glowBlue/10 border border-glowBlue/20 px-2 py-1 rounded"><i class="fa-solid fa-floppy-disk mr-1"></i>SAVE</button>
+          </div>
+          <p class="text-[11px] font-orbitron font-bold text-gray-500 uppercase tracking-widest leading-none">Registered: <span id="profileJoinDate">---</span></p>
+        </div>
+      </div>
+
+      <!-- Referral Station -->
+      <div class="glass-morphic border border-glowPurple/35 shadow-glowPurple rounded-2xl p-5">
+        <h3 class="font-orbitron font-bold text-md text-glowPurple uppercase">Quantum Referrals</h3>
+        <p class="text-xs text-gray-400 mt-1">Distribute security credentials to unlock +250 credits instantly.</p>
+
+        <div class="mt-4 space-y-4">
+          <div class="bg-black/60 p-3.5 rounded-xl flex items-center justify-between border border-white/5">
+            <div>
+              <span class="text-[10px] text-gray-400 font-orbitron uppercase tracking-widest font-bold">Uplink Code:</span>
+              <p id="profileUserReferCode" class="font-orbitron font-black text-2xl tracking-widest text-glowPurple mt-0.5">------</p>
+            </div>
+            <button onclick="copyReferralCode()" class="px-5 py-2.5 bg-glowPurple text-white font-orbitron font-bold text-xs rounded-lg hover:brightness-110 active:scale-95 transition-all outline-none">COPY CODE</button>
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-gray-400">
+            <span>Crew Enlisted Total: <span id="profileReferredTotal" class="text-white font-bold">0</span> Nodes</span>
+            <span class="text-neonGreen font-semibold uppercase font-orbitron">Bonus Multiplier active (+10%)</span>
+          </div>
+
+          <!-- Red Code Promo Entry System -->
+          <div class="border-t border-white/5 pt-4 space-y-3">
+            <h4 class="font-orbitron font-bold text-xs text-white uppercase"><i class="fa-solid fa-ticket mr-1.5 text-glowBlue"></i>Redeem Promotional Key</h4>
+            <div class="flex gap-2">
+              <input type="text" id="promoCodeClaimInput" placeholder="ENTER FESTIVAL PROMO CODE" class="w-full bg-black/60 border border-white/10 rounded-xl py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-white font-orbitron outline-none focus:border-glowBlue">
+              <button onclick="submitPromoCodeClaim()" class="px-5 bg-glowBlue text-cyberBg font-orbitron font-bold text-xs rounded-xl active:scale-95 transition-all shadow-glowBlue hover:brightness-115">REDEEM</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Device Stats Card -->
+      <div class="glass-morphic border border-white/10 rounded-2xl p-5 text-xs text-gray-400 space-y-3">
+        <h3 class="font-orbitron font-bold text-md text-white border-b border-white/10 pb-3 uppercase tracking-wider">Device Matrix Registry</h3>
+        <div class="flex justify-between">
+          <span>Client Device Agent:</span>
+          <span class="text-white" id="profileDeviceAgent">Loading...</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Network Connection Latency:</span>
+          <span class="text-neonGreen">Optimal (Spark Core)</span>
+        </div>
+        <button onclick="handleLogOutUser()" class="w-full py-2.5 mt-2 text-xs font-bold bg-zinc-900 border border-white/10 rounded-xl text-zinc-400 hover:text-white transition-all outline-none uppercase font-orbitron"><i class="fa-solid fa-power-off mr-1.5 text-neonPink"></i>LOGOUT SESSION</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Android style Floating Bottom Navigation Deck (Hidden if logic state login is active) -->
+  <nav id="bottomAppNavbar" class="fixed bottom-0 left-0 right-0 z-40 max-w-md mx-auto h-20 mb-2 px-3 flex items-center justify-between glass-morphic border border-white/15 rounded-3xl shadow-glowRgb bg-black/95 transition-opacity hidden">
+    <!-- BTN 1 -->
+    <button onclick="navigateTo('dashboard')" id="nav-dashboard" class="w-16 h-16 flex flex-col items-center justify-center rounded-2xl text-glowBlue bg-glowBlue/5 border border-white/10 transition-all outline-none">
+      <i class="fa-solid fa-house text-lg pb-0.5"></i>
+      <span class="text-[9.5px] font-orbitron font-bold uppercase tracking-wider">HOME</span>
+    </button>
+    <!-- BTN 2 -->
+    <button onclick="navigateTo('videos')" id="nav-videos" class="w-16 h-16 flex flex-col items-center justify-center rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none">
+      <i class="fa-solid fa-tv text-lg pb-0.5"></i>
+      <span class="text-[9.5px] font-orbitron font-bold uppercase tracking-wider">VIDEOS</span>
+    </button>
+    <!-- BTN 3 -->
+    <button onclick="navigateTo('games')" id="nav-games" class="w-16 h-16 flex flex-col items-center justify-center rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none">
+      <i class="fa-solid fa-gamepad text-lg pb-0.5"></i>
+      <span class="text-[9.5px] font-orbitron font-bold uppercase tracking-wider">GAMES</span>
+    </button>
+    <!-- BTN 4 -->
+    <button onclick="navigateTo('wallet')" id="nav-wallet" class="w-16 h-16 flex flex-col items-center justify-center rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none">
+      <i class="fa-solid fa-wallet text-lg pb-0.5"></i>
+      <span class="text-[9.5px] font-orbitron font-bold uppercase tracking-wider">WALLET</span>
+    </button>
+    <!-- BTN 5 -->
+    <button onclick="navigateTo('leaderboard')" id="nav-leaderboard" class="w-16 h-16 flex flex-col items-center justify-center rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none">
+      <i class="fa-solid fa-ranking-star text-lg pb-0.5"></i>
+      <span class="text-[9.5px] font-orbitron font-bold uppercase tracking-wider">RANKS</span>
+    </button>
+  </nav>
+
+  <!-- WEB AUDIO INSTRUMENT INTEGRATOR SCRIPT -->
+  <script>
+    let audioCtx = null;
+    function playAudioSound(type) {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'click') {
+          osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.1);
+        } else if (type === 'coin') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(987.77, audioCtx.currentTime); // B5
+          osc.frequency.setValueAtTime(1318.51, audioCtx.currentTime + 0.08); // E6
+          gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.005, audioCtx.currentTime + 0.35);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.35);
+        } else if (type === 'levelUp') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+          osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+          osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+          osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3); // C6
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.6);
+        } else if (type === 'warning') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+          osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.3);
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.35);
+        } else if (type === 'spin') {
+          osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+          osc.frequency.linearRampToValueAtTime(500, audioCtx.currentTime + 0.24);
+          gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.25);
+        }
+      } catch (err) {
+        console.warn("Audio Context init blocked or delayed: ", err);
+      }
+    }
+  </script>
+
+  <!-- FIREBASE PLATFORM CLIENT LOGIC MODULE -->
+  <script>
+    // Exact requested Firebase Database config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCSgInnq7TAHouOLDm_OWLV5eiCYdDOViw",
+      authDomain: "earning-f0702.firebaseapp.com",
+      databaseURL: "https://earning-f0702-default-rtdb.firebaseio.com",
+      projectId: "earning-f0702",
+      messagingSenderId: "237104042249",
+      appId: "1:237104042249:web:7dd97c33d31b4a9e8b83d8",
+      measurementId: "G-Y9201J7Q15"
+    };
+
+    // Initialize compat APIs
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    // Application local model structure
+    let currentUserId = null;
+    let currentUserData = null;
+    let activeRoute = 'dashboard';
+    let videoTimerInterval = null;
+    let youtubePlayer = null;
+    let currentWatchedVideo = null;
+    let isVideoTimerCounting = false;
+    let secondsWatched = 0;
+    let cheatWindowCounter = 0;
+    let isTabFocused = true;
+    let countdownInterval = null;
+    let onlineActiveTimerVal = 60; // seconds countdown for +15 coins online
+
+    // Static default fallback values
+    const settings = {
+      coinsPerMin: 15,
+      referralBonusCoins: 250,
+      xpPerLevelStep: 500,
+    };
+
+    // Floating matrix particles animator setup
+    const initParticleMatrix = () => {
+      const cv = document.getElementById('particleCanvas');
+      if (!cv) return;
+      const ctx = cv.getContext('2d');
+      let w = cv.width = window.innerWidth;
+      let h = cv.height = window.innerHeight;
+      const arr = [];
+      for (let i = 0; i < 40; i++) {
+        arr.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          s: Math.random() * 2 + 1,
+          dy: Math.random() * 0.7 + 0.15,
+          color: Math.random() > 0.5 ? '#00f0ff' : '#bd00ff'
+        });
+      }
+      const anim = () => {
+        ctx.clearRect(0,0,w,h);
+        arr.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = p.color;
+          ctx.fill();
+          p.y += p.dy;
+          if (p.y > h) {
+            p.y = -10;
+            p.x = Math.random() * w;
+          }
+        });
+        requestAnimationFrame(anim);
+      };
+      anim();
+      window.addEventListener('resize', () => {
+        w = cv.width = window.innerWidth;
+        h = cv.height = window.innerHeight;
+      });
+    };
+
+    // Toast UI Generator
+    function displayToast(msg, isErr = false) {
+      const banner = document.getElementById('toastNotification');
+      const text = document.getElementById('toastText');
+      const icon = document.getElementById('toastIcon');
+      
+      text.innerText = msg;
+      if (isErr) {
+        banner.className = "fixed top-4 left-1/2 transform -translate-x-1/2 z-50 glass-morphic px-5 py-3 rounded-full flex items-center gap-3 border border-opacity-50 border-neonPink shadow-[0_0_15px_rgba(255,0,127,0.4)] text-neonPink text-sm font-semibold transition-all duration-300 translate-y-0 opacity-100";
+        icon.className = "fa-solid fa-triangle-exclamation text-neonPink";
+        playAudioSound('warning');
+      } else {
+        banner.className = "fixed top-4 left-1/2 transform -translate-x-1/2 z-50 glass-morphic px-5 py-3 rounded-full flex items-center gap-3 border border-opacity-50 border-glowBlue shadow-glowBlue text-glowBlue text-sm font-semibold transition-all duration-300 translate-y-0 opacity-100";
+        icon.className = "fa-solid fa-circle-check text-glowBlue";
+        playAudioSound('click');
+      }
+      setTimeout(() => {
+        banner.classList.add('translate-y-[-100px]');
+        banner.classList.add('opacity-0');
+      }, 3500);
+    }
+
+    // Toggle authentication Tabs login / signup
+    function toggleAuthTab(tab) {
+      playAudioSound('click');
+      const bLogin = document.getElementById('tabLoginBtn');
+      const bSignup = document.getElementById('tabSignupBtn');
+      const pLogin = document.getElementById('loginFormPanel');
+      const pSignup = document.getElementById('signupFormPanel');
+
+      if (tab === 'login') {
+        bLogin.className = "w-1/2 py-2 text-sm font-semibold rounded-lg font-orbitron transition-all bg-gradient-to-r from-glowBlue/20 to-glowPurple/20 text-glowBlue border border-glowBlue/40";
+        bSignup.className = "w-1/2 py-2 text-sm font-semibold rounded-lg font-orbitron text-gray-400 hover:text-white transition-all border border-transparent";
+        pLogin.classList.remove('hidden');
+        pSignup.classList.add('hidden');
+      } else {
+        bSignup.className = "w-1/2 py-2 text-sm font-semibold rounded-lg font-orbitron transition-all bg-gradient-to-r from-glowBlue/20 to-glowPurple/20 text-glowBlue border border-glowBlue/40";
+        bLogin.className = "w-1/2 py-2 text-sm font-semibold rounded-lg font-orbitron text-gray-400 hover:text-white transition-all border border-transparent";
+        pSignup.classList.remove('hidden');
+        pLogin.classList.add('hidden');
+      }
+    }
+
+    // Auth actions: Register recruit warrior profile
+    function handleSignupSubmit() {
+      const userStr = document.getElementById('signupUser').value.trim();
+      const email = document.getElementById('signupEmail').value.trim();
+      const pass = document.getElementById('signupPass').value.trim();
+      const refInp = document.getElementById('signupReferral').value.trim().toUpperCase();
+
+      if (!userStr || !email || !pass) {
+        displayToast("Coordinates are incomplete recruitment warrior!", true);
+        return;
+      }
+      if (pass.length < 6) {
+        displayToast("Select a Security Keypass longer than 6 symbols", true);
+        return;
+      }
+
+      displayToast("Processing recruitment payload...");
+      auth.createUserWithEmailAndPassword(email, pass)
+        .then(async (credentials) => {
+          const uid = credentials.user.uid;
+          const assignedCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+          
+          let referrerUid = "";
+          if (refInp) {
+            // Read uplinker code from RTDB
+            const refSnap = await db.ref('users').once('value');
+            if (refSnap.exists()) {
+              refSnap.forEach(child => {
+                if (child.val().referralCode === refInp) {
+                  referrerUid = child.key;
+                }
+              });
+            }
+          }
+
+          const freshProfile = {
+            uid: uid,
+            username: userStr,
+            email: email,
+            coins: referrerUid ? 350 : 100, // Referrals entry gives free coins bootstrap
+            xp: 0,
+            level: 1,
+            watchTime: 0,
+            streak: 1,
+            referralCode: assignedCode,
+            referredBy: referrerUid || null,
+            joinDate: Date.now(),
+            bannedStatus: false,
+            lastActive: Date.now()
+          };
+
+          // Deploy to Realtime Database
+          await db.ref(`users/${uid}`).set(freshProfile);
+
+          // Apply referral bonus payouts
+          if (referrerUid) {
+            await db.ref(`users/${referrerUid}/coins`).transaction(curr => (curr || 0) + settings.referralBonusCoins);
+            await db.ref(`users/${referrerUid}/referralsClaimed/${uid}`).set({
+              joinedCallsign: userStr,
+              timestamp: Date.now()
+            });
+            displayToast(`Referral code matched! Uplink verified (+250 bonus)!`);
+          }
+
+          displayToast("Recruitment Successful - Welcome to Hangar!");
+          clearAuthInputs();
+        })
+        .catch(err => {
+          displayToast(err.message, true);
+        });
+    }
+
+    // Action Auth: Secure Sign-in
+    function handleLoginSubmit() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const pass = document.getElementById('loginPass').value.trim();
+
+      if (!email || !pass) {
+        displayToast("Coordinates cannot remain empty keypads", true);
+        return;
+      }
+
+      displayToast("Initializing connection handshake...");
+      auth.signInWithEmailAndPassword(email, pass)
+        .then(() => {
+          displayToast("Handshake complete. Syncing database ledger.");
+          clearAuthInputs();
+        })
+        .catch(err => {
+          displayToast(err.message, true);
+        });
+    }
+
+    function clearAuthInputs() {
+      document.getElementById('loginEmail').value = '';
+      document.getElementById('loginPass').value = '';
+      document.getElementById('signupUser').value = '';
+      document.getElementById('signupEmail').value = '';
+      document.getElementById('signupPass').value = '';
+      document.getElementById('signupReferral').value = '';
+    }
+
+    function handleLogOutUser() {
+      auth.signOut().then(() => {
+        displayToast("Session killed successfully.", false);
+      });
+    }
+
+    // Navigation Switch Route Page View
+    function navigateTo(targetRoute) {
+      playAudioSound('click');
+      document.querySelectorAll('.route-view').forEach(view => {
+        view.classList.add('hidden');
+      });
+      document.getElementById(`view-${targetRoute}`).classList.remove('hidden');
+
+      // Update Nav Buttons Styles
+      document.querySelectorAll('nav button').forEach(btn => {
+        btn.className = "w-16 h-16 flex flex-col items-center justify-center rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 transition-all outline-none";
+      });
+
+      const activeBtn = document.getElementById(`nav-${targetRoute}`);
+      if (activeBtn) {
+        activeBtn.className = "w-16 h-16 flex flex-col items-center justify-center rounded-2xl text-glowBlue bg-glowBlue/5 border border-white/10 transition-all outline-none";
+      }
+
+      activeRoute = targetRoute;
+
+      // Handle custom section initializers
+      if (targetRoute === 'games') {
+        closeActiveGame();
+      } else if (targetRoute === 'wallet') {
+        renderTransactionLedgerList();
+      } else if (targetRoute === 'leaderboard') {
+        fetchSyncRanksDeck();
+      } else if (targetRoute === 'videos') {
+        // Automatically fetch latest system videos
+        fetchActiveVideosFeed();
+      }
+    }
+
+    // Auth listeners handles persistent records
+    auth.onAuthStateChanged(async (user) => {
+      const pAuth = document.getElementById('authSection');
+      const pMain = document.getElementById('mainDashboardSection');
+      const pNav = document.getElementById('bottomAppNavbar');
+
+      if (user) {
+        currentUserId = user.uid;
+        pAuth.classList.add('hidden');
+        pMain.classList.remove('hidden');
+        pNav.classList.remove('hidden');
+        
+        // Listen Realtime user logs Changes
+        db.ref(`users/${user.uid}`).on('value', (snap) => {
+          const ud = snap.val();
+          if (!ud) return;
+          currentUserData = ud;
+
+          // Check if banned
+          if (ud.bannedStatus === true) {
+            document.write("<body style='background:#06060f;color:#ff007f;font-family:sans-serif;text-align:center;padding-top:100px;'><h1>[ACCESS DENIED: BAN INDEX ACTIVE]</h1><p>This user node did multiple fraudulent activities. Ban lifted depends on network administration.</p><button onclick='location.reload()' style='padding:10px 20px;background:#39ff14;'>Re-Handshake</button></body>");
+            return;
+          }
+
+          syncInterfaceHUD();
+          renderDailyMissionsList();
+        });
+
+        // Track live online status changes
+        db.ref(`users/${user.uid}/lastActive`).set(Date.now());
+        initializeStayOnlineLoop();
+
+        // Check Admin link access
+        if (user.email === 'harshvardhantiwari39@gmail.com') {
+          document.getElementById('adminHangerLink').classList.remove('hidden');
+        }
+
+        displayToast("Link Synchronized - Active Node Online State Matrix");
+      } else {
+        currentUserId = null;
+        currentUserData = null;
+        pAuth.classList.remove('hidden');
+        pMain.classList.add('hidden');
+        pNav.classList.add('hidden');
+        
+        if (countdownInterval) clearInterval(countdownInterval);
+      }
+    });
+
+    // Synchronize UI HUD details
+    function syncInterfaceHUD() {
+      if (!currentUserData) return;
+      document.getElementById('hudUserName').innerText = currentUserData.username.toUpperCase();
+      document.getElementById('hudBalanceCoins').innerText = Number(currentUserData.coins).toLocaleString();
+      document.getElementById('hudLevelVal').innerText = currentUserData.level;
+      
+      const multiplierStep = settings.xpPerLevelStep;
+      const progressPercent = Math.min(100, Math.floor((currentUserData.xp % multiplierStep) / multiplierStep * 100));
+      document.getElementById('hudXpBar').style.width = `${progressPercent}%`;
+      
+      document.getElementById('hudStreakDays').innerText = currentUserData.streak || 1;
+      document.getElementById('walletCoinAmount').innerText = Number(currentUserData.coins).toLocaleString();
+      document.getElementById('walletInrVal').innerText = (currentUserData.coins * 0.01).toFixed(2);
+      
+      // Profile screen info
+      document.getElementById('hudAvatarPic').src = `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUserData.username}`;
+      document.getElementById('profileAvatarPic').src = `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUserData.username}`;
+      document.getElementById('usernameEditInput').value = currentUserData.username;
+      document.getElementById('profileUserReferCode').innerText = currentUserData.referralCode;
+      document.getElementById('profileJoinDate').innerText = new Date(currentUserData.joinDate).toLocaleDateString();
+      document.getElementById('profileDeviceAgent').innerText = navigator.userAgent.substring(0, 32) + "...";
+
+      // Count direct crew members
+      if (currentUserData.referralsClaimed) {
+        document.getElementById('profileReferredTotal').innerText = Object.keys(currentUserData.referralsClaimed).length;
+      } else {
+        document.getElementById('profileReferredTotal').innerText = 0;
+      }
+    }
+
+    // Save customized callsign
+    function saveProfileUsername() {
+      const newInp = document.getElementById('usernameEditInput').value.trim();
+      if (!newInp) {
+        displayToast("Callsign cannot remain empty coordinates", true);
+        return;
+      }
+      db.ref(`users/${currentUserId}/username`).set(newInp)
+        .then(() => displayToast("Callsign database updated successfully"))
+        .catch(err => displayToast(err.message, true));
+    }
+
+    // ================= STAY ONLINE CLOCK LOOP =================
+    function initializeStayOnlineLoop() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      
+      const timerLabel = document.getElementById('onlineTimerText');
+      const timerRing = document.getElementById('onlineTimerSvgCircle');
+      if (!timerLabel || !timerRing) return;
+
+      countdownInterval = setInterval(async () => {
+        if (!isTabFocused) return; // Prevent background tab-farming
+
+        onlineActiveTimerVal--;
+        
+        // Update animated progress details
+        const strokeFill = Math.floor((60 - onlineActiveTimerVal) / 60 * 440);
+        timerRing.setAttribute('stroke-dashoffset', strokeFill);
+        
+        const m = Math.floor(onlineActiveTimerVal / 60).toString().padStart(2, '0');
+        const s = (onlineActiveTimerVal % 60).toString().padStart(2, '0');
+        timerLabel.innerText = `${m}:${s}`;
+
+        if (onlineActiveTimerVal <= 0) {
+          onlineActiveTimerVal = 60;
+          timerRing.setAttribute('stroke-dashoffset', '0');
+          playAudioSound('coin');
+
+          // Add credits & XP block
+          if (currentUserId) {
+            await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + settings.coinsPerMin);
+            await claimXPPoints(15);
+            
+            // Record staying online logs
+            await db.ref(`users/${currentUserId}/missions/onlineTime`).transaction(curr => (curr || 0) + 1);
+            
+            displayToast(`Staying Online rewarded +${settings.coinsPerMin} Coins!`);
+          }
+        }
+      }, 1000);
+    }
+
+    // Anti cheat visibility triggers
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === 'hidden') {
+        isTabFocused = false;
+        playAudioSound('warning');
+        cheatWindowCounter++;
+        
+        if (youtubePlayer && isVideoTimerCounting) {
+          youtubePlayer.pauseVideo();
+        }
+
+        if (cheatWindowCounter >= 3) {
+          document.getElementById('cheatOverlay').classList.remove('hidden');
+          // Send security anomaly cheat logs to database
+          if (currentUserId) {
+            db.ref(`cheatLogs/${currentUserId}_${Date.now()}`).set({
+              uid: currentUserId,
+              email: currentUserData ? currentUserData.email : 'Unknown',
+              reason: "Repetitive background farming switching tabs triggered anti-farming boundaries",
+              timestamp: Date.now()
+            });
+          }
+        }
+      } else {
+        isTabFocused = true;
+      }
+    });
+
+    function resumeUserSession() {
+      playAudioSound('click');
+      cheatWindowCounter = 0;
+      document.getElementById('cheatOverlay').classList.add('hidden');
+    }
+
+    // ================= DYNAMIC XP & LEVELING STATE =================
+    async function claimXPPoints(xpAmt) {
+      if (!currentUserId || !currentUserData) return;
+      const targetXP = currentUserData.xp + xpAmt;
+      const oldLevel = currentUserData.level;
+      
+      // Simple formula linear logic: level up every 500 XP
+      const freshLevel = Math.floor(targetXP / settings.xpPerLevelStep) + 1;
+      
+      await db.ref(`users/${currentUserId}/xp`).set(targetXP);
+      if (freshLevel > oldLevel) {
+        await db.ref(`users/${currentUserId}/level`).set(freshLevel);
+        playAudioSound('levelUp');
+        document.getElementById('levelUpValue').innerText = `Lv. ${freshLevel}`;
+        document.getElementById('levelUpOverlay').classList.remove('hidden');
+      }
+    }
+
+    function dismissLevelUp() {
+      playAudioSound('click');
+      document.getElementById('levelUpOverlay').classList.add('hidden');
+    }
+
+    // ================= YOUTUBE VIDEO STREAM ENGINE =================
+    let fullVideosCache = [];
+    async function fetchActiveVideosFeed() {
+      const listWrap = document.getElementById('videosDashboardList');
+      if (!listWrap) return;
+
+      listWrap.innerHTML = `<p class="text-xs text-center text-gray-400 py-6"><i class="fa-solid fa-sync animate-spin mr-1.5"></i>Syncing satellite channels...</p>`;
+
+      db.ref('videos').once('value', (snap) => {
+        fullVideosCache = [];
+        if (snap.exists()) {
+          snap.forEach(child => {
+            const v = child.val();
+            v.id = child.key;
+            fullVideosCache.push(v);
+          });
+          filterVideos('all');
+        } else {
+          listWrap.innerHTML = `<p class="text-xs text-center text-gray-500 py-4">No active video streams active in Admin Panel.</p>`;
+        }
+      });
+    }
+
+    function filterVideos(cat) {
+      const listWrap = document.getElementById('videosDashboardList');
+      const bGrid = document.getElementById('videoFilters');
+      if (!listWrap) return;
+
+      // Toggle active states on buttons
+      if (bGrid) {
+        bGrid.querySelectorAll('button').forEach(btn => {
+          btn.className = "px-4 py-1.5 text-xs font-bold rounded-lg font-orbitron tracking-wide border border-white/10 bg-black/40 text-gray-400 hover:text-white transition-all";
+        });
+        event.currentTarget.className = "px-4 py-1.5 text-xs font-bold rounded-lg font-orbitron tracking-wide border border-glowBlue bg-glowBlue/15 text-glowBlue transition-all";
+      }
+
+      let filtered = fullVideosCache;
+      if (cat !== 'all') {
+        filtered = fullVideosCache.filter(v => v.category === cat);
+      }
+
+      if (filtered.length === 0) {
+        listWrap.innerHTML = `<p class="text-xs text-center text-gray-500 py-6">No videos active within category coordinate: ${cat}.</p>`;
+        return;
+      }
+
+      listWrap.innerHTML = '';
+      filtered.forEach(v => {
+        const d = document.createElement('div');
+        d.className = "glass-morphic border border-white/5 p-3 rounded-2xl flex gap-3 relative overflow-hidden active:scale-95 duration-150 transition-all cursor-pointer";
+        d.onclick = () => selectAndStreamVideo(v);
+
+        // Extract youtube ID
+        const ytId = extractYouTubeID(v.youtubeLink) || 'dQw4w9WgXcQ';
+        const thumbUrl = v.thumbnail || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+
+        d.innerHTML = `
+          <div class="relative w-28 aspect-video bg-black rounded-lg overflow-hidden flex-shrink-0">
+            <img src="${thumbUrl}" alt="thumb" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
+              <i class="fa-solid fa-circle-play text-glowBlue text-lg drop-shadow"></i>
+            </div>
+          </div>
+          <div class="flex-1 flex flex-col justify-between min-w-0">
+            <div>
+              <span class="text-xs text-glowBlue font-bold block truncate font-orbitron uppercase">${v.category || 'channel'}</span>
+              <p class="text-xs font-semibold text-white truncate text-ellipsis mt-1 font-rajdhani">${v.title}</p>
+            </div>
+            <div class="flex items-center justify-between text-[11px] font-orbitron font-bold mt-1">
+              <span class="text-neonGreen">+${v.rewardCoins} Coins</span>
+              <span class="text-gray-400">${v.watchSeconds}s Req</span>
+            </div>
+          </div>
+        `;
+        listWrap.appendChild(d);
+      });
+    }
+
+    // Helper extract youtube index ID
+    function extractYouTubeID(url) {
+      const reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(reg);
+      return (match && match[2].length === 11) ? match[2] : null;
+    }
+
+    // Embed and Play Stream Video
+    function selectAndStreamVideo(v) {
+      currentWatchedVideo = v;
+      displayToast(`Locking onto YouTube Channel: ${v.title}`);
+      
+      document.getElementById('youtubePlayerCard').classList.remove('hidden');
+      document.getElementById('activeVideoTitle').innerText = v.title.toUpperCase();
+      document.getElementById('activeVideoSeconds').innerText = v.watchSeconds;
+      document.getElementById('activeVideoCoins').innerText = v.rewardCoins;
+
+      const ytId = extractYouTubeID(v.youtubeLink) || 'dQw4w9WgXcQ';
+      secondsWatched = 0;
+      updateVideoTimerHUD(0, v.watchSeconds);
+
+      // Scroll view to player
+      document.getElementById('youtubePlayerCard').scrollIntoView({ behavior: 'smooth' });
+
+      // Initialize frame loader
+      if (youtubePlayer) {
+        youtubePlayer.loadVideoById(ytId);
+      } else {
+        // Embed YouTube framework tag
+        window.onYouTubeIframeAPIReady = () => {
+          youtubePlayer = new YT.Player('youtubeLiveFrame', {
+            height: '100%',
+            width: '100%',
+            videoId: ytId,
+            playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0, 'modestbranding': 1 },
+            events: {
+              'onStateChange': handleYouTubeStateLogs
+            }
+          });
+        };
+        // Load API
+        const t = document.createElement('script');
+        t.src = "https://www.youtube.com/iframe_api";
+        const fEl = document.getElementsByTagName('script')[0];
+        fEl.parentNode.insertBefore(t, fEl);
+      }
+    }
+
+    function handleYouTubeStateLogs(e) {
+      if (e.data === YT.PlayerState.PLAYING) {
+        isVideoTimerCounting = true;
+        beginVideoRewardTimerTracker();
+      } else {
+        isVideoTimerCounting = false;
+        if (videoTimerInterval) clearInterval(videoTimerInterval);
+      }
+    }
+
+    function beginVideoRewardTimerTracker() {
+      if (videoTimerInterval) clearInterval(videoTimerInterval);
+      
+      videoTimerInterval = setInterval(() => {
+        if (!isVideoTimerCounting || !currentWatchedVideo || !isTabFocused) return;
+
+        secondsWatched++;
+        const req = currentWatchedVideo.watchSeconds;
+        updateVideoTimerHUD(secondsWatched, req);
+
+        if (secondsWatched >= req) {
+          isVideoTimerCounting = false;
+          clearInterval(videoTimerInterval);
+          processCompletedVideoReward();
+        }
+      }, 1000);
+    }
+
+    function updateVideoTimerHUD(curr, target) {
+      const ring = document.getElementById('videoTimerSvgRing');
+      const text = document.getElementById('videoProgressPercentage');
+      if (!ring || !text) return;
+
+      const rem = Math.max(0, target - curr);
+      const prc = Math.min(100, Math.floor(curr / target * 100));
+      text.innerText = `${prc}%`;
+      
+      // Calculate Dash offset circle diameter 113
+      const off = 113 - Math.floor(prc / 100 * 113);
+      ring.setAttribute('stroke-dashoffset', off);
+    }
+
+    async function processCompletedVideoReward() {
+      if (!currentWatchedVideo || !currentUserId) return;
+      playAudioSound('coin');
+
+      const bonusCoins = Number(currentWatchedVideo.rewardCoins);
+      const videoId = currentWatchedVideo.id;
+      
+      // Update coins ledger
+      await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + bonusCoins);
+      await claimXPPoints(50); // XP bonus boost!
+
+      // Missions progress logs watch video
+      await db.ref(`users/${currentUserId}/missions/watchCount`).transaction(curr => (curr || 0) + 1);
+
+      // Record History Transaction
+      const orderRef = db.ref(`users/${currentUserId}/transactions`).push();
+      await orderRef.set({
+        title: "Video Rewards Handshake",
+        method: "Stream TV",
+        amount: bonusCoins,
+        status: "APPROVED",
+        timestamp: Date.now()
+      });
+
+      displayToast(`Congratulations! Verified completed stay. Earned +${bonusCoins} coins!`);
+
+      // Hide player cards
+      document.getElementById('youtubePlayerCard').classList.add('hidden');
+      currentWatchedVideo = null;
+      secondsWatched = 0;
+    }
+
+    // ================= MINIGAMES MATRIX HANDLERS =================
+    let currentInPlayGame = null;
+
+    function launchMiniGame(game) {
+      playAudioSound('click');
+      document.getElementById('gamesSelectionSelector').classList.add('hidden');
+      
+      document.querySelectorAll('[id^="gamePanel-"]').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`gamePanel-${game}`).classList.remove('hidden');
+      
+      currentInPlayGame = game;
+      
+      if (game === 'spin') {
+        renderSpinWheelLayout();
+      } else if (game === 'scratch') {
+        initHologramScratcherCanvas();
+      }
+    }
+
+    function closeActiveGame() {
+      playAudioSound('click');
+      document.getElementById('gamesSelectionSelector').classList.remove('hidden');
+      document.querySelectorAll('[id^="gamePanel-"]').forEach(p => p.classList.add('hidden'));
+      currentInPlayGame = null;
+      
+      // Kill timers
+      if (tapGameInterval) clearInterval(tapGameInterval);
+      if (reflexTimerInterval) clearInterval(reflexTimerInterval);
+    }
+
+    // GAMES ENGINE 1: LUCKY SPINDLE WHEEL
+    const spinPrizes = [
+      { t: "50 Coins", v: 50 },
+      { t: "100 Coins", v: 100 },
+      { t: "Lucky Boost", v: 25 },
+      { t: "Try Next Hour", v: 0 },
+      { t: "300 Coins", v: 300 },
+      { t: "50 XP", xp: 50 },
+      { t: "150 Coins", v: 150 },
+      { t: "Multiplier Core", v: 10 }
+    ];
+
+    let isSpinningWheel = false;
+    let currWheelAngle = 0;
+
+    function renderSpinWheelLayout() {
+      const cv = document.getElementById('wheelCanvas');
+      if (!cv) return;
+      const ctx = cv.getContext('2d');
+      const w = cv.width;
+      const h = cv.height;
+      const arc = Math.PI / 4; // 8 segments
+
+      ctx.clearRect(0,0,w,h);
+      for (let i = 0; i < 8; i++) {
+        ctx.beginPath();
+        ctx.fillStyle = i % 2 === 0 ? '#101030' : '#0d0d1d';
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(w/2, h/2);
+        ctx.arc(w/2, h/2, w/2 - 4, i * arc, (i+1) * arc);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9px Orbitron';
+        ctx.textAlign = 'right';
+        ctx.translate(w/2, h/2);
+        ctx.rotate((i + 0.5) * arc);
+        ctx.fillText(spinPrizes[i].t, w/2 - 12, 4);
+        ctx.restore();
+      }
+    }
+
+    function spinTheWheel() {
+      if (isSpinningWheel) return;
+      
+      // Check cooldown limits
+      if (currentUserData && currentUserData.lastSpinClaim && (Date.now() - currentUserData.lastSpinClaim) < 15000) {
+        const leftSec = Math.ceil((15000 - (Date.now() - currentUserData.lastSpinClaim))/1000);
+        displayToast(`Hangar cooling active! Spin wheel available in ${leftSec}s.`, true);
+        return;
+      }
+
+      isSpinningWheel = true;
+      playAudioSound('spin');
+      const playBtn = document.getElementById('spinBtnPlay');
+      playBtn.classList.add('brightness-50', 'pointer-events-none');
+
+      let speed = 25 + Math.random() * 10;
+      const friction = 0.98;
+      
+      const loop = setInterval(() => {
+        currWheelAngle += speed * Math.PI / 180;
+        speed *= friction;
+
+        const cv = document.getElementById('wheelCanvas');
+        const ctx = cv.getContext('2d');
+        const w = cv.width;
+        
+        ctx.clearRect(0,0,w,w);
+        ctx.save();
+        ctx.translate(w/2, w/2);
+        ctx.rotate(currWheelAngle);
+        ctx.translate(-w/2, -w/2);
+        renderSpinWheelLayout();
+        ctx.restore();
+
+        if (speed < 0.15) {
+          clearInterval(loop);
+          isSpinningWheel = false;
+          playBtn.classList.remove('brightness-50', 'pointer-events-none');
+          
+          // Calculate won prize segment
+          const deg = (currWheelAngle * 180 / Math.PI) % 360;
+          const map = 360 - deg;
+          const id = Math.floor((map / 45) % 8);
+          const claim = spinPrizes[id];
+          
+          processSpinPrizePayout(claim);
+        }
+      }, 30);
+    }
+
+    async function processSpinPrizePayout(claim) {
+      if (!currentUserId) return;
+      playAudioSound('levelUp');
+
+      // Sync limits cooldown
+      await db.ref(`users/${currentUserId}/lastSpinClaim`).set(Date.now());
+      
+      // Add mini games count metrics
+      await db.ref(`users/${currentUserId}/missions/gamesCount`).transaction(curr => (curr || 0) + 1);
+
+      if (claim.v > 0) {
+        await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + claim.v);
+        // Record History Ledger
+        const ref = db.ref(`users/${currentUserId}/transactions`).push();
+        await ref.set({
+          title: "Spin Wheel Reward Match",
+          method: "Lucky Spin",
+          amount: claim.v,
+          status: "APPROVED",
+          timestamp: Date.now()
+        });
+        displayToast(`Spin win payout! Secured +${claim.v} coins.`);
+      } else if (claim.xp > 0) {
+        await claimXPPoints(claim.xp);
+        displayToast(`Level UP boost acquired! Transferred +${claim.xp} XP coordinates.`);
+      } else {
+        displayToast("Spindle landed on null coordinate. Retesting deck recommended.");
+      }
+    }
+
+
+    // GAME 2: DYNAMIC HOLOGRAM SCRATCHER
+    let scrCanvas, scrCtx, isScratchingMouse = false;
+    let scratchWinValue = 150;
+
+    function initHologramScratcherCanvas() {
+      scrCanvas = document.getElementById('scrCanvas');
+      if (!scrCanvas) return;
+      scrCtx = scrCanvas.getContext('2d');
+      scratchWinValue = Math.floor(Math.random() * 75) + 35; // random 35-110 coins
+      document.getElementById('scratchRewardMsg').innerText = `+${scratchWinValue} COINS`;
+
+      const w = scrCanvas.width;
+      const h = scrCanvas.height;
+
+      // Draw shiny gray overlay covering text
+      scrCtx.clearRect(0,0,w,h);
+      scrCtx.fillStyle = '#2a2b3d';
+      scrCtx.fillRect(0,0,w,h);
+
+      // Add cool mechanical cyber lines drawing
+      scrCtx.strokeStyle = '#bd00ff';
+      scrCtx.lineWidth = 2.5;
+      scrCtx.beginPath();
+      scrCtx.moveTo(0,0); scrCtx.lineTo(w,h);
+      scrCtx.moveTo(w,0); scrCtx.lineTo(0,h);
+      scrCtx.stroke();
+
+      scrCtx.fillStyle = '#ffffff';
+      scrCtx.font = 'bold 12px Orbitron';
+      scrCtx.textAlign = 'center';
+      scrCtx.textBaseline = 'middle';
+      scrCtx.fillText('SCRATCH TO REVEAL HOLOGRAM', w/2, h/2);
+
+      // Event logs triggers
+      scrCanvas.addEventListener('mousedown', startScratchMove);
+      scrCanvas.addEventListener('mousemove', scratchDragDraw);
+      scrCanvas.addEventListener('mouseup', endScratchMove);
+      scrCanvas.addEventListener('mouseleave', endScratchMove);
+
+      // Mobile touch screens support
+      scrCanvas.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        const rect = scrCanvas.getBoundingClientRect();
+        scrCanvas.dispatchEvent(new MouseEvent('mousedown', {
+          clientX: touch.clientX,
+          clientY: touch.clientY
+        }));
+        e.preventDefault();
+      });
+      scrCanvas.addEventListener('touchmove', (e) => {
+        const touch = e.touches[0];
+        scrCanvas.dispatchEvent(new MouseEvent('mousemove', {
+          clientX: touch.clientX,
+          clientY: touch.clientY
+        }));
+        e.preventDefault();
+      });
+      scrCanvas.addEventListener('touchend', () => {
+        scrCanvas.dispatchEvent(new MouseEvent('mouseup', {}));
+      });
+    }
+
+    function startScratchMove() { isScratchingMouse = true; }
+    function endScratchMove() { isScratchingMouse = false; checkScratchedPercentage(); }
+
+    function scratchDragDraw(e) {
+      if (!isScratchingMouse) return;
+      const r = scrCanvas.getBoundingClientRect();
+      const scaleX = scrCanvas.width / r.width;
+      const scaleY = scrCanvas.height / r.height;
+
+      const px = (e.clientX - r.left) * scaleX;
+      const py = (e.clientY - r.top) * scaleY;
+
+      // Wipe composite mode destination-out
+      scrCtx.globalCompositeOperation = 'destination-out';
+      scrCtx.beginPath();
+      scrCtx.arc(px, py, 20, 0, Math.PI * 2);
+      scrCtx.fill();
+    }
+
+    function checkScratchedPercentage() {
+      const data = scrCtx.getImageData(0,0,scrCanvas.width,scrCanvas.height).data;
+      let cl = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i+3] === 0) cl++; // cleared pixel
+      }
+      const pct = cl / (data.length / 4);
+
+      if (pct > 0.45 && scratchWinValue > 0) {
+        scrCtx.clearRect(0,0,scrCanvas.width,scrCanvas.height); // clear all
+        playAudioSound('levelUp');
+        
+        const rewardsCoins = scratchWinValue;
+        scratchWinValue = 0; // prevent loop exploits
+        displayScratchRewardCompleted(rewardsCoins);
+      }
+    }
+
+    async function displayScratchRewardCompleted(amt) {
+      if (!currentUserId) return;
+      
+      // Update Realtime Ledger
+      await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + amt);
+      await db.ref(`users/${currentUserId}/missions/gamesCount`).transaction(curr => (curr || 0) + 1);
+
+      // Add Transaction histories logs
+      const ref = db.ref(`users/${currentUserId}/transactions`).push();
+      await ref.set({
+        title: "Scratcher Matrix Match",
+        method: "Lucky Scratch",
+        amount: amt,
+        status: "APPROVED",
+        timestamp: Date.now()
+      });
+
+      displayToast(`Hologram Resolved! Discovered +${amt} Credit tokens.`);
+    }
+
+    function resetScratcher() {
+      playAudioSound('click');
+      initHologramScratcherCanvas();
+    }
+
+
+    // GAME 3: SPEED PRESS ENGINE TAP GAME
+    let tapGameInterval = null;
+    let tapGameTimerSeconds = 15;
+    let tapGameAccumulateCoins = 0;
+    let isTapGameActive = false;
+
+    function startTapGame() {
+      if (isTapGameActive) return;
+      
+      isTapGameActive = true;
+      tapGameTimerSeconds = 15;
+      tapGameAccumulateCoins = 0;
+      
+      document.getElementById('tapTimerVal').innerText = tapGameTimerSeconds;
+      document.getElementById('tapCoinsVal').innerText = tapGameAccumulateCoins;
+      document.getElementById('tapStartBtn').classList.add('brightness-50', 'pointer-events-none');
+
+      tapGameInterval = setInterval(() => {
+        tapGameTimerSeconds--;
+        document.getElementById('tapTimerVal').innerText = tapGameTimerSeconds;
+
+        if (tapGameTimerSeconds <= 0) {
+          clearInterval(tapGameInterval);
+          endTapMiniGame();
+        }
+      }, 1000);
+    }
+
+    function triggerTapGameClick() {
+      if (!isTapGameActive) {
+        displayToast("System offline. Initiate generator using START button.");
+        return;
+      }
+      playAudioSound('click');
+      tapGameAccumulateCoins += 2; // +2 credits per tap
+      document.getElementById('tapCoinsVal').innerText = tapGameAccumulateCoins;
+    }
+
+    async function endTapMiniGame() {
+      isTapGameActive = false;
+      document.getElementById('tapStartBtn').classList.remove('brightness-50', 'pointer-events-none');
+      
+      if (tapGameAccumulateCoins <= 0) {
+        displayToast("Engine generator failed. Tap the target fast.");
+        return;
+      }
+
+      playAudioSound('levelUp');
+      const payout = tapGameAccumulateCoins;
+      tapGameAccumulateCoins = 0;
+
+      if (currentUserId) {
+        await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + payout);
+        await db.ref(`users/${currentUserId}/missions/gamesCount`).transaction(curr => (curr || 0) + 1);
+
+        // Record history
+        const ref = db.ref(`users/${currentUserId}/transactions`).push();
+        await ref.set({
+          title: "Speed Clicker Burst Power",
+          method: "Tap Coin",
+          amount: payout,
+          status: "APPROVED",
+          timestamp: Date.now()
+        });
+
+        displayToast(`Thermal complete! Gathered +${payout} Coins.`);
+      }
+    }
+
+
+    // GAME 4: FAST TARGET ORB REFLEX
+    let reflexTimerVal = 20;
+    let reflexHits = 0;
+    let reflexTimerInterval = null;
+    let isReflexActive = false;
+
+    function startReflexGame() {
+      isReflexActive = true;
+      reflexTimerVal = 20;
+      reflexHits = 0;
+      
+      document.getElementById('refTimerVal').innerText = reflexTimerVal;
+      document.getElementById('refHitsVal').innerText = reflexHits;
+      document.getElementById('reflexStartMask').classList.add('hidden');
+
+      spawnNextReflexTargetDot();
+
+      reflexTimerInterval = setInterval(() => {
+        reflexTimerVal--;
+        document.getElementById('refTimerVal').innerText = reflexTimerVal;
+
+        if (reflexTimerVal <= 0) {
+          clearInterval(reflexTimerInterval);
+          endReflexTargetSession();
+        }
+      }, 1000);
+    }
+
+    function spawnNextReflexTargetDot() {
+      if (!isReflexActive) return;
+      const dot = document.getElementById('reflexDotTarget');
+      const zone = document.getElementById('reflexStageZone');
+      if (!dot || !zone) return;
+
+      const zWidth = zone.clientWidth - 45;
+      const zHeight = zone.clientHeight - 45;
+
+      const randX = Math.floor(Math.random() * zWidth);
+      const randY = Math.floor(Math.random() * zHeight);
+
+      dot.style.left = `${randX}px`;
+      dot.style.top = `${randY}px`;
+      dot.classList.remove('hidden');
+    }
+
+    function registerReflexHit() {
+      if (!isReflexActive) return;
+      playAudioSound('click');
+      reflexHits++;
+      document.getElementById('refHitsVal').innerText = reflexHits;
+
+      // Hide and relocate
+      document.getElementById('reflexDotTarget').classList.add('hidden');
+      setTimeout(spawnNextReflexTargetDot, 100);
+    }
+
+    async function endReflexTargetSession() {
+      isReflexActive = false;
+      document.getElementById('reflexDotTarget').classList.add('hidden');
+      document.getElementById('reflexStartMask').classList.remove('hidden');
+
+      if (reflexHits <= 0) {
+        displayToast("Session ended. Zero targets locked.");
+        return;
+      }
+
+      const payoutCoins = reflexHits * 5; // 5 coins per target
+      playAudioSound('levelUp');
+
+      if (currentUserId) {
+        await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + payoutCoins);
+        await db.ref(`users/${currentUserId}/missions/gamesCount`).transaction(curr => (curr || 0) + 1);
+
+        // Transaction history logs
+        const ref = db.ref(`users/${currentUserId}/transactions`).push();
+        await ref.set({
+          title: "Reflex Orb Spark Hit",
+          method: "Reflex Orb",
+          amount: payoutCoins,
+          status: "APPROVED",
+          timestamp: Date.now()
+        });
+
+        displayToast(`Reflex exercise total payouts completed: +${payoutCoins} Coins!`);
+      }
+    }
+
+
+    // ================= DAF REWARD CHEST =================
+    async function claimDailyChest() {
+      if (!currentUserId || !currentUserData) return;
+
+      // Limit check once per day code
+      const rightNow = new Date();
+      const lastClaimed = currentUserData.lastDailyClaim ? new Date(currentUserData.lastDailyClaim) : null;
+      
+      if (lastClaimed && rightNow.toDateString() === lastClaimed.toDateString()) {
+        displayToast("System security alert: Chest restricted. Available again tomorrow!", true);
+        return;
+      }
+
+      playAudioSound('levelUp');
+      const payoutBonus = Math.floor(Math.random() * 120) + 80; // 80 - 200 credits
+      
+      await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + payoutBonus);
+      await claimXPPoints(100); // Massive XP!
+      await db.ref(`users/${currentUserId}/lastDailyClaim`).set(Date.now());
+      
+      // Update missions tracker
+      await db.ref(`users/${currentUserId}/missions/dailyChestClaimed`).set(true);
+
+      const logRef = db.ref(`users/${currentUserId}/transactions`).push();
+      await logRef.set({
+        title: "Daily Spark Chest Claim",
+        method: "Core Dashboard",
+        amount: payoutBonus,
+        status: "APPROVED",
+        timestamp: Date.now()
+      });
+
+      displayToast(`Splendid! daily chest unlocked. Extracted +${payoutBonus} coins & 100 XP!`);
+      document.getElementById('dailyChestStatusText').innerText = "CLAIMED TODAY";
+    }
+
+
+    // ================= DYNAMIC TRANSACTIONS HISTORY LEDGER =================
+    function renderTransactionLedgerList() {
+      const container = document.getElementById('transactionHistoryContainer');
+      if (!container || !currentUserId) return;
+
+      container.innerHTML = `<p class="text-xs text-center text-gray-500 py-3"><i class="fa-solid fa-sync animate-spin mr-1.5"></i>Syncing payment logs...</p>`;
+
+      db.ref(`users/${currentUserId}/transactions`).once('value', (snap) => {
+        if (snap.exists()) {
+          container.innerHTML = '';
+          const items = [];
+          snap.forEach(child => {
+            const tr = child.val();
+            items.unshift(tr); // Newest first
+          });
+
+          items.slice(0, 15).forEach(tr => {
+            const div = document.createElement('div');
+            div.className = "flex items-center justify-between py-3 pt-4 border-b border-white/5 last:border-none";
+            
+            const isClaimed = tr.amount > 0;
+            const amtClass = isClaimed ? 'text-neonGreen' : 'text-neonPink';
+            const sig = isClaimed ? '+' : '-';
+
+            div.innerHTML = `
+              <div>
+                <p class="text-xs font-orbitron font-bold text-white uppercase">${tr.title || 'LEDGER OPERATION'}</p>
+                <div class="flex items-center gap-1.5 mt-1 text-[10px] text-gray-400 font-orbitron">
+                  <span>${tr.method}</span> • <span>${new Date(tr.timestamp).toLocaleString()}</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="font-orbitron font-black text-sm block ${amtClass}">${sig}${Math.abs(tr.amount)}</span>
+                <span class="text-[9px] px-1.5 py-0.5 mt-1 rounded bg-black text-[10px] uppercase font-bold text-teal-400 font-orbitron">${tr.status || 'APPROVED'}</span>
+              </div>
+            `;
+            container.appendChild(div);
+          });
+        } else {
+          container.innerHTML = `<p class="text-xs text-gray-500 text-center py-4">No logged operations registered inside wallet ledger.</p>`;
+        }
+      });
+    }
+
+
+    // ================= WITHDRAWALS GATEWAY MANAGER =================
+    let selectedMethod = 'UPI';
+
+    function selectWithdrawMethod(method) {
+      playAudioSound('click');
+      selectedMethod = method;
+      
+      document.getElementById('withdrawInputLabel').innerText = `${method} ADDRESS COORDINATE`;
+      document.getElementById('withdrawWalletAddress').placeholder = method === 'UPI' ? 'cyberpilot@ybl' : method === 'PAYTM' ? '9876543210' : 'E-Gift Coordinate';
+
+      document.querySelectorAll('[id^="method"]').forEach(btn => {
+        btn.className = "py-2 text-xs font-bold rounded-lg font-orbitron tracking-wider border border-white/10 bg-black/40 text-gray-400";
+      });
+      document.getElementById(`method${method}`).className = "py-2 text-xs font-bold rounded-lg font-orbitron tracking-wider border border-glowBlue bg-glowBlue/10 text-glowBlue";
+    }
+
+    async function submitWithdrawalRequest() {
+      if (!currentUserId || !currentUserData) return;
+
+      const pAddr = document.getElementById('withdrawWalletAddress').value.trim();
+      const inrTarget = parseFloat(document.getElementById('withdrawalTierSelect').value);
+      const coinsReq = inrTarget * 100; // 100 coins per 1 INR
+
+      if (!pAddr) {
+        displayToast("Coordinates invalid! Input payment address.", true);
+        return;
+      }
+
+      if (currentUserData.coins < coinsReq) {
+        displayToast(`Insufficient balance. Requires ${coinsReq.toLocaleString()} coins for ₹${inrTarget}`, true);
+        return;
+      }
+
+      playAudioSound('warning');
+
+      // Deduct coins instant transactions
+      await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) - coinsReq);
+
+      const requestPayload = {
+        uid: currentUserId,
+        username: currentUserData.username,
+        email: currentUserData.email,
+        method: selectedMethod,
+        recipientAddress: pAddr,
+        inrAmount: inrTarget,
+        coinsDeducted: coinsReq,
+        status: "PENDING",
+        timestamp: Date.now()
+      };
+
+      // Push to global admin logs
+      const globKey = db.ref('withdrawals').push().key;
+      await db.ref(`withdrawals/${globKey}`).set(requestPayload);
+
+      // Save user log history reference
+      const uRef = db.ref(`users/${currentUserId}/transactions`).push();
+      await uRef.set({
+        title: `${selectedMethod} Debit Cashout Initiated`,
+        method: "Cashout Queue",
+        amount: -coinsReq,
+        status: "PENDING",
+        timestamp: Date.now()
+      });
+
+      displayToast(`Cashout requested! ₹${inrTarget} queued for verification check.`);
+      document.getElementById('withdrawWalletAddress').value = '';
+      navigateTo('dashboard');
+    }
+
+
+    // ================= REAL-TIME SYSTEM NOTIFICATION & MISSIONS =================
+    const defaultMissionsStructure = [
+      { id: 'dailyChestClaimed', title: "Claim Free Daily Special Chest", target: 1, reward: 50, desc: "Explore inside dashboard" },
+      { id: 'watchCount', title: "Watch 3 Video TV Streams", target: 3, reward: 150, desc: "Watch videos inside TV terminal" },
+      { id: 'gamesCount', title: "Tweak 3 Mini Games Cabinets", target: 3, reward: 100, desc: "Participate inside gaming arcade" },
+      { id: 'onlineTime', title: "Stays Active Stay Online 10 Mins", target: 10, reward: 120, desc: "Count stay online minutes ticker" }
+    ];
+
+    function renderDailyMissionsList() {
+      const container = document.getElementById('dailyMissionsContainer');
+      if (!container || !currentUserData) return;
+
+      // Ensure missions sub tree is initialized
+      const udMissions = currentUserData.missions || {};
+
+      container.innerHTML = '';
+      defaultMissionsStructure.forEach(m => {
+        let currentProgress = udMissions[m.id] || 0;
+        if (m.id === 'dailyChestClaimed') {
+          currentProgress = currentProgress === true ? 1 : 0;
+        }
+
+        const isComplete = currentProgress >= m.target;
+        const widthPercent = Math.min(100, Math.floor(currentProgress / m.target * 100));
+
+        const div = document.createElement('div');
+        div.className = "pb-4 last:pb-0";
+        div.innerHTML = `
+          <div class="flex justify-between items-center mb-1">
+            <div>
+              <p class="text-xs font-orbitron font-bold text-white uppercase">${m.title}</p>
+              <span class="text-[10px] text-gray-500 font-semibold">${m.desc}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] font-orbitron font-bold text-glowBlue uppercase">${currentProgress} / ${m.target}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="flex-1 bg-black/60 h-1.5 rounded-full overflow-hidden border border-white/5 relative">
+              <div class="bg-gradient-to-r from-glowBlue to-glowPurple h-full" style="width: ${widthPercent}%"></div>
+            </div>
+            <button onclick="claimSingleSpecialOpsBonus('${m.id}', ${m.reward})" class="px-3 py-1 text-[10px] font-orbitron font-bold rounded-lg border uppercase transition-all outline-none ${isComplete && !udMissions[`claimed_${m.id}`] ? 'bg-neonGreen border-neonGreen text-black animate-pulse' : 'bg-black/45 border-white/10 text-gray-500 cursor-not-allowed pointer-events-none'}" id="btn-claim-mission-${m.id}">
+              ${udMissions[`claimed_${m.id}`] ? 'CLAIMED' : 'CLAIM'}
+            </button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function claimSingleSpecialOpsBonus(missionId, amount) {
+      if (!currentUserId || !currentUserData) return;
+      playAudioSound('coin');
+
+      await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + amount);
+      await db.ref(`users/${currentUserId}/missions/claimed_${missionId}`).set(true);
+
+      // Record transaction
+      const ref = db.ref(`users/${currentUserId}/transactions`).push();
+      await ref.set({
+        title: `Special Ops Bonus: ${missionId}`,
+        method: "Missions Portal",
+        amount: amount,
+        status: "APPROVED",
+        timestamp: Date.now()
+      });
+
+      displayToast(`Claim complete! Reward matches applied: +${amount} Coins.`);
+    }
+
+
+    // ================= PROMO CODES COMPILER =================
+    async function submitPromoCodeClaim() {
+      const inp = document.getElementById('promoCodeClaimInput').value.trim().toUpperCase();
+      if (!inp || !currentUserId) {
+        displayToast("System check failed. Entering input coordinates is required.", true);
+        return;
+      }
+
+      displayToast("Decryption coordinates executing...");
+      
+      const pSnap = await db.ref(`promoCodes/${inp}`).once('value');
+      if (!pSnap.exists()) {
+        displayToast("Coordinates database matches zero indices (Invalid Code).", true);
+        return;
+      }
+
+      const pData = pSnap.val();
+      if (pData.activeStatus === false) {
+        displayToast("Decryption target key expired or decommissioned.", true);
+        return;
+      }
+
+      // Check if user already claimed this code
+      if (pData.claimedBy && pData.claimedBy[currentUserId]) {
+        displayToast("Handshake rejected. Coordinates already decrypted by user terminal.", true);
+        return;
+      }
+
+      // Claim rewarded outcomes
+      playAudioSound('levelUp');
+      const cashValue = Number(pData.rewardCoins);
+
+      await db.ref(`users/${currentUserId}/coins`).transaction(curr => (curr || 0) + cashValue);
+      await claimXPPoints(50);
+
+      // Mark Code as claimed
+      await db.ref(`promoCodes/${inp}/claimedBy/${currentUserId}`).set(Date.now());
+
+      // Write transaction
+      const ref = db.ref(`users/${currentUserId}/transactions`).push();
+      await ref.set({
+        title: `Decrypted Custom Promocode: ${inp}`,
+        method: "Voucher Registry",
+        amount: cashValue,
+        status: "APPROVED",
+        timestamp: Date.now()
+      });
+
+      displayToast(`Handshake matched! Extracted +${cashValue} promotional credits!`);
+      document.getElementById('promoCodeClaimInput').value = '';
+    }
+
+    function copyReferralCode() {
+      if (!currentUserData) return;
+      navigator.clipboard.writeText(currentUserData.referralCode);
+      displayToast("Callsign Referrals Code copied safely!");
+    }
+
+
+    // ================= LEDGER RANKS COMPILER =================
+    function fetchSyncRanksDeck() {
+      const container = document.getElementById('leaderboardListingGrid');
+      if (!container) return;
+
+      container.innerHTML = `<p class="text-xs text-center text-gray-500 py-6"><i class="fa-solid fa-sync animate-spin mr-1.5"></i>Querying blockchain grid ranks...</p>`;
+
+      db.ref('users').orderByChild('coins').limitToLast(15).once('value', (snap) => {
+        if (snap.exists()) {
+          container.innerHTML = '';
+          const players = [];
+          snap.forEach(child => {
+            const val = child.val();
+            players.push(val);
+          });
+
+          players.reverse(); // Highest first
+
+          players.forEach((p, idx) => {
+            const d = document.createElement('div');
+            
+            // Render specific highlighting for top 3
+            let rankDecor = '';
+            let bgGlow = 'border-white/5';
+            if (idx === 0) {
+              rankDecor = 'text-yellow-400 font-black text-lg';
+              bgGlow = 'border-yellow-500/35 bg-yellow-500/5 shadow-[0_0_10px_rgba(234,179,8,0.1)]';
+            } else if (idx === 1) {
+              rankDecor = 'text-cyan-400 font-extrabold text-md';
+              bgGlow = 'border-cyan-500/35 bg-cyan-500/5 shadow-[0_0_10px_rgba(6,182,212,0.1)]';
+            } else if (idx === 2) {
+              rankDecor = 'text-brand-500 font-extrabold text-sm';
+              bgGlow = 'border-indigo-500/30 bg-indigo-500/5 shadow-[0_0_10px_rgba(99,102,241,0.1)]';
+            } else {
+              rankDecor = 'text-gray-500 font-medium text-xs';
+            }
+
+            d.className = `glass-morphic border p-3 rounded-2xl flex items-center justify-between transition-all ${bgGlow} mb-2.5`;
+            d.innerHTML = `
+              <div class="flex items-center gap-3">
+                <span class="font-orbitron w-6 text-center ${rankDecor}">#${idx+1}</span>
+                <div class="w-10 h-10 rounded-xl bg-black border border-white/10 overflow-hidden flex-shrink-0">
+                  <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${p.username}" alt="pic" class="w-full h-full object-cover">
+                </div>
+                <div>
+                  <span class="font-orbitron font-bold text-xs text-white uppercase block">${p.username}</span>
+                  <div class="flex items-center gap-1.5 text-[10px] text-gray-400 font-orbitron">
+                    <span>Lv.${p.level || 1} System</span>
+                  </div>
+                </div>
+              </div>
+              <div class="text-right flex items-center gap-1.5 font-orbitron font-bold">
+                <span class="text-glowBlue text-sm">${Number(p.coins || 0).toLocaleString()}</span>
+                <i class="fa-solid fa-coins text-[10px] text-glowBlue"></i>
+              </div>
+            `;
+            container.appendChild(d);
+          });
+        } else {
+          container.innerHTML = `<p class="text-xs text-gray-500 text-center py-4">Database grid ranks index matches empty node accounts.</p>`;
+        }
+      });
+    }
+
+    // Initialize core particle systems
+    initParticleMatrix();
+
+    // Listen to admin bulletin feed announcements
+    db.ref('adminSettings/announcements').on('value', (snap) => {
+      const m = snap.val();
+      if (m) {
+        document.getElementById('liveBulletinAlert').innerText = m.toUpperCase();
+      }
+    });
+
+    // Listen to coin per minute modifier settings from admin
+    db.ref('adminSettings/coinsPerMin').on('value', (snap) => {
+      const rate = snap.val();
+      if (rate) {
+        settings.coinsPerMin = Number(rate);
+        document.getElementById('settingCoinsPerMin').innerText = rate;
+      }
+    });
+  </script>
+</body>
+</html>

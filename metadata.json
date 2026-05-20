@@ -1,0 +1,6 @@
+{
+  "name": "Watch & Earn Gaming Hub",
+  "description": "Futuristic mobile watch-and-earn gaming platform featuring Firebase Auth, Realtime Database, interactive video player, mini-games, and full Admin control panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

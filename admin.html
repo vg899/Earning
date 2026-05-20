@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyber Hub - Hangar Admin control</title>
+  
+  <!-- Tailwind & Font Icons CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Firebase Compat Core & Modules SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cyberBg: '#05050c',
+            cyberCard: 'rgba(10, 10, 24, 0.8)',
+            glowPurple: '#bd00ff',
+            glowBlue: '#00f0ff',
+            neonPink: '#ff007f',
+            neonGreen: '#39ff14',
+          },
+          fontFamily: {
+            orbitron: ['Orbitron', 'sans-serif'],
+            rajdhani: ['Rajdhani', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #05050c;
+      font-family: 'Rajdhani', sans-serif;
+      overflow-x: hidden;
+    }
+    .neon-text-pink {
+      text-shadow: 0 0 10px rgba(255, 0, 127, 0.7);
+    }
+    .neon-text-blue {
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+    }
+    .glass-morphic {
+      background: rgba(10, 10, 24, 0.8);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .rgb-border {
+      border: 1px solid rgba(189, 0, 255, 0.35);
+      box-shadow: 0 0 15px rgba(189, 0, 255, 0.15);
+    }
+    /* Hide scrollbars but keep functional */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #05050c;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #00f0ff;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="text-zinc-100 min-h-screen">
+
+  <!-- Toast Message system -->
+  <div id="toastNotification" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 glass-morphic px-5 py-3 rounded-full flex items-center gap-3 border border-opacity-50 border-glowBlue shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all duration-300 translate-y-[-100px] opacity-0 text-sm font-semibold text-glowBlue">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-glowBlue"></i>
+    <span id="toastText">Operation Executed Successfully</span>
+  </div>
+
+  <!-- ACCESS LOCKED INTERCEPTOR OUTLAY (Default Visible, Hidden purely if verified admin seed) -->
+  <div id="unauthorizedOverlay" class="fixed inset-0 z-50 bg-[#04040a] flex flex-col items-center justify-center p-6 text-center select-none">
+    <div class="max-w-md p-8 rounded-3xl glass-morphic border-2 border-neonPink shadow-[0_0_30px_rgba(255,0,127,0.4)] animate-pulse">
+      <i class="fa-solid fa-shield-halved text-neonPink text-7xl mb-5"></i>
+      <h1 class="font-orbitron font-extrabold text-3xl text-neonPink uppercase tracking-widest mb-3">Locked Security Hangar</h1>
+      <p class="text-zinc-400 font-semibold mb-6">Administrative clearance is required to interact with this operational cluster. Verify that you are signed in coordinates using authorized credentials.</p>
+      <div class="flex flex-col gap-3">
+        <a href="user.html" class="px-6 py-3 bg-gradient-to-r from-glowPurple to-glowBlue rounded-xl font-bold font-orbitron text-xs tracking-wider uppercase hover:brightness-110 active:scale-95 transition-all text-white">REVERT TO FLIGHT DECK (USER)</a>
+        <button onclick="checkAdminSecurityInterference()" class="text-xs text-zinc-500 font-bold tracking-widest hover:text-white transition-colors">REFRESH HANDSHAKE CREDENTIAL DETAILS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CORE ADMIN DESK (Loaded and mapped only if authorized) -->
+  <div id="adminMasterLayout" class="hidden min-h-screen flex flex-col xl:flex-row">
+    
+    <!-- Sidebar control rack -->
+    <aside class="xl:w-64 w-full bg-[#070716] border-b xl:border-b-0 xl:border-r border-white/5 p-5 flex flex-col justify-between">
+      <div>
+        <!-- Title bar -->
+        <div class="flex items-center gap-3 mb-8">
+          <div class="p-2.5 bg-gradient-to-r from-neonPink to-glowPurple rounded-xl shadow-[0_0_10px_rgba(255,0,127,0.3)]">
+            <i class="fa-solid fa-satellite-dish text-xl text-white animate-pulse"></i>
+          </div>
+          <div>
+            <h2 class="font-orbitron font-black text-transparent bg-clip-text bg-gradient-to-r from-glowBlue to-glowPurple leading-tight text-md tracking-wider">SECURE HANGAR</h2>
+            <span class="text-[10px] text-zinc-500 font-orbitron uppercase tracking-widest font-bold">Admin Console</span>
+          </div>
+        </div>
+
+        <!-- Section Navigation -->
+        <nav class="space-y-2 flex xl:flex-col overflow-x-auto xl:overflow-x-visible pb-2 xl:pb-0 gap-2 xl:gap-0">
+          <button onclick="switchAdminTab('dashboard')" id="tab-dashboard" class="w-full text-left px-4 py-3 bg-glowBlue/10 border-l-2 border-glowBlue rounded-lg text-glowBlue font-orbitron text-xs font-bold uppercase transition-all flex items-center gap-2 flex-shrink-0">
+            <i class="fa-solid fa-chart-line text-xs"></i>
+            <span>SYSTEM DASHBOARD</span>
+          </button>
+          <button onclick="switchAdminTab('users')" id="tab-users" class="w-full text-left px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-all font-orbitron text-xs font-bold uppercase flex items-center gap-2 flex-shrink-0">
+            <i class="fa-solid fa-users text-xs"></i>
+            <span>USER ACCOUNTS</span>
+          </button>
+          <button onclick="switchAdminTab('videos')" id="tab-videos" class="w-full text-left px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-all font-orbitron text-xs font-bold uppercase flex items-center gap-2 flex-shrink-0">
+            <i class="fa-solid fa-clapperboard text-xs"></i>
+            <span>VIDEO CHANNELS</span>
+          </button>
+          <button onclick="switchAdminTab('withdrawals')" id="tab-withdrawals" class="w-full text-left px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-all font-orbitron text-xs font-bold uppercase flex items-center gap-2 flex-shrink-0">
+            <i class="fa-solid fa-money-bill-transfer text-xs"></i>
+            <span>CASHOUT REQUESTS (<span id="sidebarPendingCount" class="text-neonPink">0</span>)</span>
+          </button>
+          <button onclick="switchAdminTab('settings')" id="tab-settings" class="w-full text-left px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-all font-orbitron text-xs font-bold uppercase flex items-center gap-2 flex-shrink-0">
+            <i class="fa-solid fa-sliders-up text-xs"></i>
+            <span>TWEAK SETTINGS</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="border-t border-white/5 pt-4 mt-6 xl:mt-0">
+        <div class="flex items-center gap-2.5 mb-4 text-xs">
+          <div class="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center font-bold text-glowBlue uppercase font-orbitron">AD</div>
+          <div class="min-w-0">
+            <p class="text-zinc-300 font-bold truncate">HARSHVARDHAN</p>
+            <span class="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">Admin clearance</span>
+          </div>
+        </div>
+        <button onclick="handleLogOutAdmin()" class="w-full py-2.5 bg-zinc-900 border border-white/5 text-zinc-500 hover:text-white font-semibold font-orbitron text-xs hover:border-neonPink/40 transition-all rounded-lg uppercase">Sign out</button>
+      </div>
+    </aside>
+
+    <!-- Operational Board Viewport -->
+    <main class="flex-1 p-6 lg:p-10 max-w-7xl mx-auto w-full space-y-8 overflow-y-auto">
+      
+      <!-- Real-time operational banner -->
+      <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/5 pb-6">
+        <div>
+          <h1 id="viewTitleHeader" class="font-orbitron font-extrabold text-3xl tracking-wide text-white uppercase leading-none">SYSTEM MONITORING</h1>
+          <p class="text-zinc-500 text-xs mt-2 uppercase tracking-wider font-semibold">Real-time status of satellite earning nodes</p>
+        </div>
+        
+        <div class="flex items-center gap-3">
+          <a href="user.html" target="_blank" class="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold font-orbitron text-xs tracking-wider rounded-xl transition-all border border-white/5 flex items-center gap-2 uppercase">
+            <i class="fa-solid fa-up-right-from-square"></i>
+            <span>Launch user client</span>
+          </a>
+          <button onclick="refreshHandshakeData()" class="px-5 py-2.5 bg-gradient-to-r from-glowPurple to-glowBlue text-white font-bold font-orbitron text-xs tracking-wider rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-[0_0_10px_rgba(189,0,255,0.35)] uppercase">
+            <i class="fa-solid fa-arrows-rotate mr-1.5 animate-spin"></i>Force sync ledgers
+          </button>
+        </div>
+      </header>
+
+      <!-- ================= PAGE 1: SYSTEM DASHBOARD ================= -->
+      <section id="view-dashboard" class="space-y-8 animate-fadeIn">
+        <!-- Core metrics strip grids -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <!-- Met 1 -->
+          <div class="glass-morphic border border-white/5 p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between h-36">
+            <div class="flex items-center justify-between text-zinc-500 font-orbitron text-xs uppercase font-bold tracking-wider">
+              <span>Total registered Nodes</span>
+              <i class="fa-solid fa-users text-glowBlue"></i>
+            </div>
+            <div>
+              <span id="metricTotalUsers" class="font-orbitron font-black text-4xl block text-white tracking-widest leading-none">0</span>
+              <span class="text-[10px] text-neonGreen font-semibold uppercase font-orbitron mt-1 block">Live cloud sync</span>
+            </div>
+            <div class="absolute -bottom-6 -right-6 w-16 h-16 bg-glowBlue/5 rounded-full blur-xl"></div>
+          </div>
+
+          <!-- Met 2 -->
+          <div class="glass-morphic border border-white/5 p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between h-36">
+            <div class="flex items-center justify-between text-zinc-500 font-orbitron text-xs uppercase font-bold tracking-wider">
+              <span>Online user signals (5m)</span>
+              <i class="fa-solid fa-wave-square text-neonGreen"></i>
+            </div>
+            <div>
+              <span id="metricOnlineUsers" class="font-orbitron font-black text-4xl block text-neonGreen tracking-widest leading-none">0</span>
+              <span class="text-[10px] text-zinc-400 font-semibold uppercase font-orbitron mt-1 block">Active transmitters</span>
+            </div>
+            <div class="absolute -bottom-6 -right-6 w-16 h-16 bg-neonGreen/5 rounded-full blur-xl"></div>
+          </div>
+
+          <!-- Met 3 -->
+          <div class="glass-morphic border border-white/5 p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between h-36">
+            <div class="flex items-center justify-between text-zinc-500 font-orbitron text-xs uppercase font-bold tracking-wider">
+              <span>Pending withdrawals</span>
+              <i class="fa-solid fa-money-bill-transfer text-neonPink animate-pulse"></i>
+            </div>
+            <div>
+              <span id="metricPendingWithdrawals" class="font-orbitron font-black text-4xl block text-neonPink tracking-widest leading-none">0</span>
+              <span class="text-[10px] text-zinc-400 font-semibold uppercase font-orbitron mt-1 tracking-wide block">De-queue requested</span>
+            </div>
+            <div class="absolute -bottom-6 -right-6 w-16 h-16 bg-neonPink/5 rounded-full blur-xl"></div>
+          </div>
+
+          <!-- Met 4 -->
+          <div class="glass-morphic border border-white/5 p-5 rounded-2xl relative overflow-hidden flex flex-col justify-between h-36">
+            <div class="flex items-center justify-between text-zinc-500 font-orbitron text-xs uppercase font-bold tracking-wider">
+              <span>Circulating supply credits</span>
+              <i class="fa-solid fa-coins text-glowPurple"></i>
+            </div>
+            <div>
+              <span id="metricTotalRewardsDistributed" class="font-orbitron font-black text-3xl block text-glowPurple tracking-tighter leading-none">0</span>
+              <span class="text-[10px] text-zinc-400 font-semibold uppercase font-orbitron mt-1 block">Net wallet reserves</span>
+            </div>
+            <div class="absolute -bottom-6 -right-6 w-16 h-16 bg-glowPurple/5 rounded-full blur-xl"></div>
+          </div>
+
+        </div>
+
+        <!-- Charts / visual elements grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Main charts container -->
+          <div class="lg:col-span-2 glass-morphic border border-white/5 p-6 rounded-3xl relative">
+            <h3 class="font-orbitron font-bold text-md text-white border-b border-white/5 pb-3 uppercase tracking-wider mb-4">Satellite Node Distribution trend</h3>
+            <div class="w-full flex items-center justify-center p-4">
+              <!-- Custom clean vector trend line layout -->
+              <svg class="w-full h-40 overflow-visible text-glowBlue" stroke="currentColor">
+                <path d="M 0 100 Q 80 50 160 80 T 320 30 T 480 90 T 640 10" fill="none" stroke-width="3" stroke-linecap="round" class="drop-shadow-[0_0_8px_currentColor]"/>
+                <circle cx="160" cy="80" r="5" fill="#00f0ff" />
+                <circle cx="320" cy="30" r="5" fill="#00f0ff" />
+                <circle cx="480" cy="90" r="5" fill="#00f0ff" />
+                <circle cx="640" cy="10" r="5" fill="#bd00ff" />
+              </svg>
+            </div>
+            <div class="flex justify-between font-orbitron text-[10px] text-zinc-500 mt-2">
+              <span>Recruit level 1</span>
+              <span>Advanced level 10</span>
+              <span>Special flight deck level 25</span>
+              <span>Master Core Level 100</span>
+            </div>
+          </div>
+
+          <!-- Left column elements -->
+          <div class="glass-morphic border border-white/5 p-6 rounded-3xl space-y-4">
+            <h3 class="font-orbitron font-bold text-md text-white border-b border-white/5 pb-3 uppercase tracking-wider">Active Stream distribution model</h3>
+            <div class="space-y-3 pt-2">
+              <div>
+                <div class="flex justify-between text-xs text-zinc-400 font-orbitron font-bold mb-1">
+                  <span>GAMING SECTORS</span>
+                  <span class="text-glowBlue" id="secPrcGaming">50%</span>
+                </div>
+                <div class="w-full h-1.5 bg-black rounded-full overflow-hidden">
+                  <div class="bg-glowBlue h-full" style="width: 50%" id="secBarGaming"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-zinc-400 font-orbitron font-bold mb-1">
+                  <span>MOVIE METERS</span>
+                  <span class="text-glowPurple" id="secPrcMovies">30%</span>
+                </div>
+                <div class="w-full h-1.5 bg-black rounded-full overflow-hidden">
+                  <div class="bg-glowPurple h-full" style="width: 30%" id="secBarMovies"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs text-zinc-400 font-orbitron font-bold mb-1">
+                  <span>MUSIC SYNC</span>
+                  <span class="text-neonPink" id="secPrcMusic">20%</span>
+                </div>
+                <div class="w-full h-1.5 bg-black rounded-full overflow-hidden">
+                  <div class="bg-neonPink h-full" style="width: 20%" id="secBarMusic"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PAGE 2: USER MANAGEMENT ================= -->
+      <section id="view-users" class="space-y-6 hidden animate-fadeIn">
+        <div class="glass-morphic border border-white/5 p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex-1 max-w-md relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-zinc-500"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <input type="text" id="userInputSearch" placeholder="SEARCH SATELLITE USER CALLSIGNS..." oninput="handleUserCatalogSearch()" class="w-full bg-black/50 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold uppercase tracking-wider text-white focus:outline-none focus:border-glowBlue outline-none">
+          </div>
+          <span class="text-xs text-zinc-400 font-bold font-orbitron uppercase" id="accountsCatalogCount">0 ACCOUNTS MAPPED</span>
+        </div>
+
+        <!-- Database users table deck -->
+        <div class="glass-morphic border border-white/5 rounded-3xl overflow-hidden shadow">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-black/60 border-b border-white/5 text-[10px] font-orbitron font-bold text-zinc-400 tracking-widest uppercase">
+                  <th class="py-4 px-6">NODE CALLSIGN</th>
+                  <th class="py-4 px-6">MET CREDITS (COINS)</th>
+                  <th class="py-4 px-6">MISSION PROGRESS</th>
+                  <th class="py-4 px-6">UPLINK STREAK</th>
+                  <th class="py-4 px-6">ACCESS STATUS</th>
+                  <th class="py-4 px-6 text-center">DECISION INJECTOR</th>
+                </tr>
+              </thead>
+              <tbody id="userCatalogTbody" class="divide-y divide-white/5 text-sm font-medium">
+                <!-- Dyn Generated -->
+                <tr>
+                  <td colspan="6" class="text-center py-8 text-zinc-500 text-xs uppercase font-semibold">Initiating user accounts catalog...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PAGE 3: VIDEO MANAGEMENT ================= -->
+      <section id="view-videos" class="grid grid-cols-1 lg:grid-cols-3 gap-8 hidden animate-fadeIn">
+        
+        <!-- Video add container -->
+        <div class="glass-morphic border border-glowBlue/45 rounded-3xl p-6 relative">
+          <h3 class="font-orbitron font-bold text-md text-glowBlue border-b border-white/10 pb-3 uppercase tracking-wider mb-5">INJECT SATELLITE CHANNEL</h3>
+          
+          <div class="space-y-4 text-xs font-bold text-zinc-400">
+            <div>
+              <label class="block uppercase font-orbitron mb-1.5">Stream Title Designation</label>
+              <input type="text" id="videoDesignationTitle" placeholder="CYBER PUNK TRAILER" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron uppercase text-xs">
+            </div>
+            
+            <div>
+              <label class="block uppercase font-orbitron mb-1.5">YouTube Stream URL Coordinate</label>
+              <input type="text" id="videoStreamingLink" placeholder="https://www.youtube.com/watch?v=..." class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron text-xs">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block uppercase font-orbitron mb-1.5">Req Watch (Secs)</label>
+                <input type="number" id="videoSecondsRequired" value="30" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron text-xs">
+              </div>
+              <div>
+                <label class="block uppercase font-orbitron mb-1.5">Credit Multiplier</label>
+                <input type="number" id="videoCreditsReward" value="50" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron text-xs">
+              </div>
+            </div>
+
+            <div>
+              <label class="block uppercase font-orbitron mb-1.5">Sector (Category)</label>
+              <select id="videoCategorySector" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron text-xs">
+                <option value="gaming">GAMING SYSTEMS</option>
+                <option value="movies">MOVIE TRAILERS</option>
+                <option value="music">MUSIC SYNC</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block uppercase font-orbitron mb-1.5">System Thumbnail Custom Override (Optional)</label>
+              <input type="text" id="videoThumbnailPic" placeholder="Direct url (Direct PNG/JPG)" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron text-xs">
+            </div>
+
+            <button onclick="commitNewVideoRecord()" class="w-full py-3.5 bg-gradient-to-r from-glowBlue to-glowPurple text-white font-orbitron font-bold tracking-widest uppercase rounded-xl hover:brightness-110 active:scale-95 transition-all outline-none">INJECT SATELLITE STREAM</button>
+          </div>
+        </div>
+
+        <!-- Videos registry library lists -->
+        <div class="lg:col-span-2 space-y-4">
+          <div class="glass-morphic border border-white/5 p-5 rounded-2xl">
+            <h3 class="font-orbitron font-bold text-md text-white uppercase tracking-wider">Broadcasting registry feeds</h3>
+          </div>
+          
+          <div id="adminVideosListContainer" class="space-y-4">
+            <!-- Dyn items list -->
+            <p class="text-zinc-500 text-center py-6">Connecting stream library indices...</p>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= PAGE 4: CASHOUT MANAGEMENT ================= -->
+      <section id="view-withdrawals" class="space-y-6 hidden animate-fadeIn">
+        <div class="glass-morphic border border-white/5 p-6 rounded-3xl">
+          <h3 class="font-orbitron font-bold text-md text-white border-b border-white/5 pb-3 uppercase tracking-wider">Cashout settlement queue</h3>
+          
+          <div class="overflow-x-auto mt-4">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-black/60 border-b border-white/5 text-[10px] font-orbitron font-bold text-zinc-400 tracking-widest uppercase">
+                  <th class="py-4 px-6">NODE PAYER DETAILS</th>
+                  <th class="py-4 px-6">CASHOUT GATEWAY</th>
+                  <th class="py-4 px-6">DESTINATION ADDRESS</th>
+                  <th class="py-4 px-6">SETTLEMENT COINS</th>
+                  <th class="py-4 px-6">OUTPOCKET FIAT</th>
+                  <th class="py-4 px-6">QUEUE STATUS</th>
+                  <th class="py-4 px-6 text-center">ORDER ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="payoutsettlementsTbody" class="divide-y divide-white/5 text-sm font-medium">
+                <!-- Dyn Generated -->
+                <tr>
+                  <td colspan="7" class="text-center py-8 text-zinc-500 text-xs uppercase font-semibold">Loading financial settlement ledger...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= PAGE 5: TWEAK SETTINGS ================= -->
+      <section id="view-settings" class="grid grid-cols-1 lg:grid-cols-2 gap-8 hidden animate-fadeIn">
+        
+        <!-- CPM announcement modify settings -->
+        <div class="glass-morphic border border-white/5 p-6 rounded-3xl space-y-6">
+          <h3 class="font-orbitron font-bold text-md text-white border-b border-white/5 pb-3 uppercase tracking-wider">Operational core configuration</h3>
+          
+          <div class="space-y-4 text-xs font-bold text-zinc-400">
+            <div>
+              <label class="block uppercase font-orbitron mb-1.5">Coins per Minute online multiplier</label>
+              <div class="flex gap-2">
+                <input type="number" id="settingCoinsPerMinInp" value="15" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron text-xs">
+                <button onclick="updateCPMSettingVal()" class="px-5 bg-glowBlue text-zinc-950 rounded-xl font-orbitron font-bold active:scale-95 transition-all text-xs">UPDATE</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block uppercase font-orbitron mb-1.5">Satellite Bulletin ticker text marquee marquee</label>
+              <div class="space-y-2">
+                <textarea id="settingMarqueeTextInp" rows="2" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-zinc-300 focus:outline-none focus:border-glowBlue text-xs" placeholder="WELCOME TO WATCH & EARN PLATFORM..."></textarea>
+                <button onclick="updateMarqueeAlertBulletin()" class="w-full py-2.5 bg-glowPurple text-white rounded-xl font-orbitron font-bold active:scale-95 transition-all text-xs">BROADCAST WORLDWIDE</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Promo Code Generators -->
+        <div class="glass-morphic border border-white/5 p-6 rounded-3xl space-y-6">
+          <h3 class="font-orbitron font-bold text-md text-white border-b border-white/5 pb-3 uppercase tracking-wider">Voucher generator control</h3>
+          
+          <div class="space-y-4 text-xs font-bold text-zinc-400">
+            <div>
+              <label class="block uppercase font-orbitron mb-1.5 font-bold">Generate Unique promo key</label>
+              <div class="flex gap-2">
+                <input type="text" id="promoCodeGenerateInp" placeholder="NEWYEAR2026" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron text-xs uppercase">
+                <button onclick="generateRandomPromoSeedCode()" class="px-4 border border-zinc-700 hover:border-white text-zinc-400 hover:text-white rounded-xl font-semibold transition-all">RANDOM</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block uppercase font-orbitron mb-1.5">Voucher reward currency (Coins value)</label>
+              <input type="number" id="promoCodeCoinValueInp" value="250" class="w-full bg-black/60 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-glowBlue font-orbitron text-xs">
+            </div>
+
+            <button onclick="commitFreshVoucherPromo()" class="w-full py-3 bg-gradient-to-r from-glowBlue to-glowPurple text-white font-orbitron font-bold tracking-widest rounded-xl hover:brightness-110 active:scale-95 transition-all text-xs">DEPLOY PROMO-VOUCHER KEY</button>
+          </div>
+
+          <!-- Existing promo library list -->
+          <div class="border-t border-white/5 pt-4">
+            <h4 class="font-orbitron font-bold text-xs text-zinc-400 mb-3 uppercase">Active Operational promo keys</h4>
+            <div id="promoVouchersSublistContainer" class="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+              <p class="text-zinc-600 text-xs py-2">Loading active promokeys...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHEAT FLAG FRAUD RADAR SYSTEM -->
+        <div class="xl:col-span-2 glass-morphic border border-neonPink/35 rounded-3xl p-6 space-y-4">
+          <h3 class="font-orbitron font-bold text-md text-neonPink border-b border-white/5 pb-3 uppercase tracking-wider">FRAUD DETECTION MONITOR LOGS</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-black/60 border-b border-white/5 text-[10px] font-orbitron font-bold text-zinc-400 tracking-widest uppercase">
+                  <th class="py-3 px-4">TIMESTAMP</th>
+                  <th class="py-3 px-4">NODE IDENTITY (EMAIL)</th>
+                  <th class="py-3 px-4">DEFECTION EXPLOIT REPORT DETAILS</th>
+                  <th class="py-3 px-4 text-center">SHIELD CONTROLS</th>
+                </tr>
+              </thead>
+              <tbody id="cheatReportsTbody" class="divide-y divide-white/5 text-xs text-zinc-400">
+                <tr>
+                  <td colspan="4" class="text-center py-6 text-zinc-600 uppercase font-semibold">Analyzing network signals...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- CORE CODE MODULE SCRIPTS -->
+  <script>
+    // Exact requested Firebase Database config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCSgInnq7TAHouOLDm_OWLV5eiCYdDOViw",
+      authDomain: "earning-f0702.firebaseapp.com",
+      databaseURL: "https://earning-f0702-default-rtdb.firebaseio.com",
+      projectId: "earning-f0702",
+      messagingSenderId: "237104042249",
+      appId: "1:237104042249:web:7dd97c33d31b4a9e8b83d8",
+      measurementId: "G-Y9201J7Q15"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    // Local lists caching
+    let activeAdminTab = 'dashboard';
+    let usersCatalogList = [];
+
+    // Authentications watcher
+    auth.onAuthStateChanged((user) => {
+      const lockOverlay = document.getElementById('unauthorizedOverlay');
+      const dashboardPanel = document.getElementById('adminMasterLayout');
+
+      if (user && user.email === 'harshvardhantiwari39@gmail.com') {
+        lockOverlay.classList.add('hidden');
+        dashboardPanel.classList.remove('hidden');
+        
+        initializeAdminDataSubscriptions();
+      } else {
+        lockOverlay.classList.remove('hidden');
+        dashboardPanel.classList.add('hidden');
+      }
+    });
+
+    function checkAdminSecurityInterference() {
+      auth.onAuthStateChanged((user) => {
+        if (user && user.email === 'harshvardhantiwari39@gmail.com') {
+          displayToast("Clearence Handshake matched successfully!");
+        } else {
+          displayToast("Clearance denied! Account mismatch or session unauthenticated.", true);
+        }
+      });
+    }
+
+    function handleLogOutAdmin() {
+      auth.signOut().then(() => {
+        location.href = "user.html";
+      });
+    }
+
+    // Toast UI notification displays
+    function displayToast(msg, isErr = false) {
+      const banner = document.getElementById('toastNotification');
+      const text = document.getElementById('toastText');
+      const icon = document.getElementById('toastIcon');
+
+      text.innerText = msg;
+      if (isErr) {
+        banner.className = "fixed top-4 left-1/2 transform -translate-x-1/2 z-50 glass-morphic px-5 py-3 rounded-full flex items-center gap-3 border border-opacity-50 border-neonPink shadow-[0_0_15px_rgba(255,0,127,0.4)] text-neonPink text-sm font-semibold transition-all duration-300 translate-y-0 opacity-100";
+        icon.className = "fa-solid fa-triangle-exclamation text-neonPink";
+      } else {
+        banner.className = "fixed top-4 left-1/2 transform -translate-x-1/2 z-50 glass-morphic px-5 py-3 rounded-full flex items-center gap-3 border border-opacity-50 border-glowBlue shadow-[0_0_15px_rgba(0,240,255,0.4)] text-glowBlue text-sm font-semibold transition-all duration-300 translate-y-0 opacity-100";
+        icon.className = "fa-solid fa-circle-check text-glowBlue";
+      }
+      setTimeout(() => {
+        banner.classList.add('translate-y-[-100px]');
+        banner.classList.add('opacity-0');
+      }, 3500);
+    }
+
+    // Force refresh database triggers
+    function refreshHandshakeData() {
+      displayToast("Sending operational sync triggers to cloud server...");
+      initializeAdminDataSubscriptions();
+    }
+
+    // Switch sidebar pages
+    function switchAdminTab(targetTab) {
+      document.querySelectorAll('[id^="view-"]').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`view-${targetTab}`).classList.remove('hidden');
+
+      document.querySelectorAll('aside nav button').forEach(b => {
+        b.className = "w-full text-left px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-all font-orbitron text-xs font-bold uppercase flex items-center gap-2 flex-shrink-0";
+      });
+
+      document.getElementById(`tab-${targetTab}`).className = "w-full text-left px-4 py-3 bg-glowBlue/10 border-l-2 border-glowBlue rounded-lg text-glowBlue font-orbitron text-xs font-bold uppercase transition-all flex items-center gap-2 flex-shrink-0";
+      document.getElementById('viewTitleHeader').innerText = targetTab === 'dashboard' ? 'SYSTEM MONITORING' : targetTab.toUpperCase() + ' DESK';
+      
+      activeAdminTab = targetTab;
+    }
+
+    // Subscribe and calculate dynamic DB values
+    function initializeAdminDataSubscriptions() {
+      
+      // 1. CALCULATE CORE USERS METRICS (CIRCULATING CREDITS AND REWARDS)
+      db.ref('users').on('value', (snap) => {
+        usersCatalogList = [];
+        let grandRewardsSum = 0;
+        let onlineCount = 0;
+        const now = Date.now();
+
+        if (snap.exists()) {
+          snap.forEach(child => {
+            const ud = child.val();
+            ud.id = child.key;
+            usersCatalogList.push(ud);
+            grandRewardsSum += Number(ud.coins || 0);
+
+            // Online checks: logged pulse within last 5 minutes
+            if (ud.lastActive && (now - ud.lastActive) < 300000) {
+              onlineCount++;
+            }
+          });
+        }
+
+        document.getElementById('metricTotalUsers').innerText = usersCatalogList.length;
+        document.getElementById('metricOnlineUsers').innerText = onlineCount;
+        document.getElementById('metricTotalRewardsDistributed').innerText = grandRewardsSum.toLocaleString();
+        
+        // Populate listings in catalog
+        renderUsersCatalogCatalogTable();
+      });
+
+      // 2. WATCH WITHDRAWALS PENDING METRICS
+      db.ref('withdrawals').on('value', (snap) => {
+        let pPending = 0;
+        const listItems = [];
+
+        if (snap.exists()) {
+          snap.forEach(child => {
+            const wl = child.val();
+            wl.id = child.key;
+            listItems.push(wl);
+            if (wl.status === 'PENDING') pPending++;
+          });
+        }
+
+        document.getElementById('sidebarPendingCount').innerText = pPending;
+        document.getElementById('sidebarPendingCount').className = pPending > 0 ? "text-neonPink font-bold animate-pulse" : "text-zinc-500";
+        document.getElementById('metricPendingWithdrawals').innerText = pPending;
+
+        // Render payouts Table
+        renderFinancialQueueSettlementsTable(listItems);
+      });
+
+      // 3. LISTEN TO REGISTERED CHANNEL STREAM VIDEOS
+      db.ref('videos').on('value', (snap) => {
+        const listContainer = document.getElementById('adminVideosListContainer');
+        if (!listContainer) return;
+
+        if (snap.exists()) {
+          listContainer.innerHTML = '';
+          snap.forEach(child => {
+            const v = child.val();
+            const id = child.key;
+            const ytId = extractYouTubeID(v.youtubeLink) || 'dQw4w9WgXcQ';
+            const thumbUrl = v.thumbnail || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+
+            const item = document.createElement('div');
+            item.className = "glass-morphic border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4";
+            item.innerHTML = `
+              <div class="flex items-center gap-4 min-w-0">
+                <img src="${thumbUrl}" alt="thumb" class="w-24 aspect-video object-cover bg-black rounded-lg flex-shrink-0">
+                <div class="min-w-0">
+                  <span class="text-[10px] font-orbitron font-bold text-glowBlue uppercase px-1.5 py-0.5 border border-glowBlue bg-glowBlue/5 rounded">${v.category || 'channel'}</span>
+                  <h4 class="font-orbitron font-bold text-sm text-white truncate text-ellipsis mt-2 leading-none uppercase">${v.title}</h4>
+                  <div class="flex items-center gap-3 mt-2 text-[11px] text-zinc-400 font-bold font-orbitron">
+                    <span class="text-neonGreen">+${v.rewardCoins} COINS</span>
+                    <span>${v.watchSeconds} SEC WATCH</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="toggleVideoBypassActiveState('${id}', ${v.activeStatus})" class="px-4 py-2 border rounded-xl text-xs font-semibold ${v.activeStatus ? 'bg-neonGreen/10 border-neonGreen text-neonGreen' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}">
+                  ${v.activeStatus ? 'ACTIVE STREAM' : 'MUTED'}
+                </button>
+                <button onclick="deleteBroadcastVideoRecord('${id}')" class="p-2 border border-zinc-700 text-zinc-400 hover:text-neonPink hover:border-neonPink/40 transition-all rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
+              </div>
+            `;
+            listContainer.appendChild(item);
+          });
+        } else {
+          listContainer.innerHTML = `<p class="text-zinc-600 text-center py-6">No broadcasting channels injected yet.</p>`;
+        }
+      });
+
+      // 4. RETRIEVE CPM AND BULLETIN DEFAULTS IN INPUTS
+      db.ref('adminSettings/coinsPerMin').once('value', (snap) => {
+        if (snap.exists()) document.getElementById('settingCoinsPerMinInp').value = snap.val();
+      });
+      db.ref('adminSettings/announcements').once('value', (snap) => {
+        if (snap.exists()) document.getElementById('settingMarqueeTextInp').value = snap.val();
+      });
+
+      // 5. RETRIEVE PROMO KEY LISTS
+      db.ref('promoCodes').on('value', (snap) => {
+        const wrap = document.getElementById('promoVouchersSublistContainer');
+        if (!wrap) return;
+
+        if (snap.exists()) {
+          wrap.innerHTML = '';
+          snap.forEach(child => {
+            const code = child.key;
+            const pmData = child.val();
+            const totalClaims = pmData.claimedBy ? Object.keys(pmData.claimedBy).length : 0;
+
+            const div = document.createElement('div');
+            div.className = "bg-black/60 border border-white/5 p-3 rounded-lg flex justify-between items-center text-xs";
+            div.innerHTML = `
+              <div>
+                <span class="font-orbitron font-black text-glowPurple text-sm">${code}</span>
+                <p class="text-[10px] text-zinc-400 font-orbitron uppercase mt-0.5 font-bold">Payout: +${pmData.rewardCoins} coins • claimed: ${totalClaims}</p>
+              </div>
+              <button onclick="deletePromoVoucherNode('${code}')" class="text-zinc-500 hover:text-neonPink transition-all"><i class="fa-solid fa-trash-can text-sm"></i></button>
+            `;
+            wrap.appendChild(div);
+          });
+        } else {
+          wrap.innerHTML = `<p class="text-xs text-zinc-600">No promo codes minted yet.</p>`;
+        }
+      });
+
+      // 6. RETRIEVE SUSPICIOUS CHEAT FRAUD RADAR SYSTEM LOGS
+      db.ref('cheatLogs').on('value', (snap) => {
+        const tbody = document.getElementById('cheatReportsTbody');
+        if (!tbody) return;
+
+        if (snap.exists()) {
+          tbody.innerHTML = '';
+          const arr = [];
+          snap.forEach(child => {
+            const clog = child.val();
+            clog.id = child.key;
+            arr.unshift(clog); // newest first
+          });
+
+          arr.slice(0, 10).forEach(cg => {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-red-500/5 transition-colors border-b border-white/5";
+            tr.innerHTML = `
+              <td class="py-3 px-4 font-mono text-[10px] text-zinc-500">${new Date(cg.timestamp).toLocaleString()}</td>
+              <td class="py-3 px-4 font-semibold text-zinc-200">${cg.email}</td>
+              <td class="py-3 px-4 text-zinc-400 font-semibold">${cg.reason}</td>
+              <td class="py-3 px-4 text-center">
+                <button onclick="banDefectedAccount('${cg.uid}')" class="px-2.5 py-1 text-[10px] font-orbitron font-bold bg-neonPink/15 border border-neonPink/30 text-neonPink hover:bg-neonPink rounded-lg hover:text-white transition-all uppercase">BAN NODE</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-zinc-600 font-semibold font-orbitron uppercase">Exploit status monitoring clean. Zero anomalies.</td></tr>`;
+        }
+      });
+
+    }
+
+    // ================= SATELLITE USERS LIST TABLE LEDGER =================
+    function renderUsersCatalogCatalogTable(filteredArr = null) {
+      const tbody = document.getElementById('userCatalogTbody');
+      if (!tbody) return;
+
+      const items = filteredArr || usersCatalogList;
+      document.getElementById('accountsCatalogCount').innerText = `${items.length} ACCOUNTS MAPPED`;
+
+      if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-zinc-500 text-xs">No users matching search conditions.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      items.forEach(u => {
+        const uMissions = u.missions || {};
+        const gamesPlayed = uMissions.gamesCount || 0;
+        const watchVideos = uMissions.watchCount || 0;
+
+        const isBanned = u.bannedStatus === true;
+        const statusClass = isBanned ? 'bg-neonPink/15 border-neonPink/30 text-neonPink' : 'bg-neonGreen/15 border-neonGreen/30 text-neonGreen';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-white/5 transition-colors border-b border-white/5 font-semibold text-zinc-300";
+        tr.innerHTML = `
+          <td class="py-4 px-6">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 border border-zinc-800 bg-black rounded-lg overflow-hidden flex-shrink-0">
+                <img src="https://api.dicebear.com/7.x/bottts/svg?seed=${u.username}" alt="pic" class="w-full h-full object-cover">
+              </div>
+              <div class="min-w-0">
+                <span class="text-white block truncate uppercase font-orbitron text-xs font-bold leading-none mb-1.5">${u.username}</span>
+                <span class="text-[10px] text-zinc-500 font-mono tracking-widest block truncate uppercase leading-none">${u.email}</span>
+              </div>
+            </div>
+          </td>
+          <td class="py-4 px-6 font-orbitron text-xs font-bold text-glowBlue">${Number(u.coins || 0).toLocaleString()}</td>
+          <td class="py-4 px-6 text-[11px] text-zinc-400">
+            <div>Gaming: <span class="text-white">${gamesPlayed}</span></div>
+            <div class="mt-0.5">Videos: <span class="text-white">${watchVideos}</span></div>
+          </td>
+          <td class="py-4 px-6 font-orbitron font-bold text-yellow-400 text-xs"><i class="fa-solid fa-fire mr-1"></i>${u.streak || 1} Days</td>
+          <td class="py-4 px-6">
+            <span class="text-[10px] px-2 py-0.5 rounded-full border uppercase font-bold tracking-wider ${statusClass}">${isBanned ? 'BANNED' : 'SECURE'}</span>
+          </td>
+          <td class="py-4 px-6 text-center">
+            <div class="flex items-center justify-center gap-2">
+              <button onclick="promptEditUserCredits('${u.id}', ${u.coins})" class="px-2.5 py-1.5 bg-glowBlue/10 border border-glowBlue/30 hover:bg-glowBlue hover:text-black rounded-lg text-glowBlue text-[11px] transition-all flex items-center gap-1 uppercase font-orbitron font-bold"><i class="fa-solid fa-pen-to-square"></i>Edit Fund</button>
+              <button onclick="toggleGlobalAccountAccessBan('${u.id}', ${isBanned})" class="px-2.5 py-1.5 border rounded-lg text-[11px] transition-all font-bold font-orbitron uppercase ${isBanned ? 'bg-neonGreen/10 border-neonGreen text-neonGreen hover:bg-neonGreen hover:text-black' : 'bg-neonPink/10 border-neonPink text-neonPink hover:bg-neonPink hover:text-white'}">
+                ${isBanned ? 'UNBAN NODE' : 'BAN NODE'}
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Catalog search query
+    function handleUserCatalogSearch() {
+      const q = document.getElementById('userInputSearch').value.trim().toLowerCase();
+      if (!q) {
+        renderUsersCatalogCatalogTable();
+        return;
+      }
+      const filtered = usersCatalogList.filter(u => u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+      renderUsersCatalogCatalogTable(filtered);
+    }
+
+    // Change funding balance manually
+    function promptEditUserCredits(uid, currentCoins) {
+      const amount = prompt(`Operational Ledger Modifier\n\nCurrent Balance: ${currentCoins.toLocaleString()}\nInput the NEW desired Coins Ledger value:`, currentCoins);
+      if (amount === null) return;
+      
+      const parsedCoins = parseInt(amount, 10);
+      if (isNaN(parsedCoins)) {
+        displayToast("Value error: Numbers are required configurations.", true);
+        return;
+      }
+
+      db.ref(`users/${uid}/coins`).set(parsedCoins)
+        .then(() => displayToast("Nodes transaction balance modified successfully!"))
+        .catch(err => displayToast(err.message, true));
+    }
+
+    // Ban defected user accounts
+    function toggleGlobalAccountAccessBan(uid, currentBanState) {
+      playAudioSound('click');
+      const state = !currentBanState;
+      const warnMsg = `Security Clearance check:\n\nAre you sure you want to ${state ? 'BAN' : 'UNBAN'} this satellite user?`;
+      if (!confirm(warnMsg)) return;
+
+      db.ref(`users/${uid}/bannedStatus`).set(state)
+        .then(() => displayToast(`User account ${state ? 'Banned' : 'Clearance restored'}!`))
+        .catch(err => displayToast(err.message, true));
+    }
+
+    function banDefectedAccount(uid) {
+      db.ref(`users/${uid}/bannedStatus`).set(true)
+        .then(() => displayToast("Intruder defect banned successfully."))
+        .catch(err => displayToast(err.message, true));
+    }
+
+
+    // ================= FINANCIAL CASHOUT REQUEST SETTLEMENTS =================
+    function renderFinancialQueueSettlementsTable(withdrawalsArr) {
+      const tbody = document.getElementById('payoutsettlementsTbody');
+      if (!tbody) return;
+
+      if (withdrawalsArr.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-zinc-500 text-xs">All active cashout settlements complete in cloud reserves!</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      withdrawalsArr.reverse(); // Newest first
+
+      withdrawalsArr.forEach(w => {
+        let statusStyle = 'bg-zinc-800 border-zinc-700 text-zinc-400';
+        if (w.status === 'PENDING') statusStyle = 'bg-neonPink/15 border-neonPink/30 text-neonPink animate-pulse';
+        else if (w.status === 'APPROVED') statusStyle = 'bg-neonGreen/15 border-neonGreen/30 text-neonGreen';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-white/5 transition-colors border-b border-white/5 font-semibold text-zinc-300";
+        tr.innerHTML = `
+          <td class="py-4 px-6">
+            <span class="text-white block uppercase font-orbitron text-xs font-bold mb-1 leading-none">${w.username}</span>
+            <span class="text-[10px] text-zinc-500 font-mono lowercase block truncate leading-none">${w.email}</span>
+          </td>
+          <td class="py-4 px-6 font-orbitron text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-glowBlue to-glowPurple uppercase">${w.method}</td>
+          <td class="py-4 px-6 font-mono text-zinc-400 text-xs uppercase">${w.recipientAddress}</td>
+          <td class="py-4 px-6 font-orbitron text-xs font-bold text-glowBlue">${Number(w.coinsDeducted || 0).toLocaleString()}</td>
+          <td class="py-4 px-6 text-neonGreen font-orbitron font-bold text-xs"><i class="fa-solid fa-indian-rupee-sign mr-0.5"></i>₹${w.inrAmount}</td>
+          <td class="py-4 px-6">
+            <span class="text-[10px] px-2 py-0.5 rounded-full border uppercase font-bold tracking-wider ${statusStyle}">${w.status}</span>
+          </td>
+          <td class="py-4 px-6 text-center">
+            ${w.status === 'PENDING' ? `
+              <div class="flex items-center justify-center gap-2">
+                <button onclick="settleAndApproveCashout('${w.id}')" class="px-2.5 py-1.5 bg-neonGreen/15 border border-neonGreen/40 hover:bg-neonGreen hover:text-black rounded-lg text-neonGreen text-[11px] font-bold font-orbitron transition-all uppercase leading-none">APPROVE</button>
+                <button onclick="settleAndRejectCashout('${w.id}', '${w.uid}', ${w.coinsDeducted})" class="px-2.5 py-1.5 bg-neonPink/15 border border-neonPink/40 hover:bg-neonPink hover:text-white rounded-lg text-neonPink text-[11px] font-bold font-orbitron transition-all uppercase leading-none">REJECT</button>
+              </div>
+            ` : `<span class="text-[10px] text-zinc-500 uppercase font-orbitron font-bold">SETTLED</span>`}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function settleAndApproveCashout(wid) {
+      if (!confirm("Confirm payouts settlement and approve this cashout request?")) return;
+
+      db.ref(`withdrawals/${wid}/status`).set("APPROVED")
+        .then(() => {
+          displayToast("Withdrawals request approved! Sent direct payout verified ledger logs.");
+        })
+        .catch(err => displayToast(err.message, true));
+    }
+
+    async function settleAndRejectCashout(wid, userId, coinsDeducted) {
+      if (!confirm("Confirm payouts rejection? Rejection automatically returns deducted coins back to user profile portfolio reserve.")) return;
+
+      // Deduct/Refund Coins atomic action
+      await db.ref(`users/${userId}/coins`).transaction(curr => (curr || 0) + coinsDeducted);
+
+      // Save user transactional refund ledger Log
+      const uRef = db.ref(`users/${userId}/transactions`).push();
+      await uRef.set({
+        title: `Rejected Cashout Coin Return Payout`,
+        method: "Settlements desk",
+        amount: coinsDeducted, // positive credit refund
+        status: "APPROVED",
+        timestamp: Date.now()
+      });
+
+      // Update globally status
+      await db.ref(`withdrawals/${wid}/status`).set("REJECTED");
+      displayToast("Payouts Rejected. Sum coins returned successfully!");
+    }
+
+
+    // ================= BROADCASTING VIDEO REGISTRY CHANNELS =================
+    // Helper extract youtube index ID
+    function extractYouTubeID(url) {
+      const reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(reg);
+      return (match && match[2].length === 11) ? match[2] : null;
+    }
+
+    function commitNewVideoRecord() {
+      const title = document.getElementById('videoDesignationTitle').value.trim();
+      const link = document.getElementById('videoStreamingLink').value.trim();
+      const secs = parseInt(document.getElementById('videoSecondsRequired').value, 10);
+      const coins = parseInt(document.getElementById('videoCreditsReward').value, 10);
+      const cat = document.getElementById('videoCategorySector').value;
+      const thumb = document.getElementById('videoThumbnailPic').value.trim();
+
+      if (!title || !link || isNaN(secs) || isNaN(coins)) {
+        displayToast("System check failed: Parameters are empty keypad inputs.", true);
+        return;
+      }
+
+      displayToast("Broadcasting new stream channel records...");
+      
+      const vPayload = {
+        title: title,
+        youtubeLink: link,
+        watchSeconds: secs,
+        rewardCoins: coins,
+        category: cat,
+        thumbnail: thumb || "",
+        activeStatus: true
+      };
+
+      db.ref('videos').push(vPayload)
+        .then(() => {
+          displayToast("Broadcast stream successfully initialized worldwide!");
+          document.getElementById('videoDesignationTitle').value = '';
+          document.getElementById('videoStreamingLink').value = '';
+          document.getElementById('videoThumbnailPic').value = '';
+        })
+        .catch(err => displayToast(err.message, true));
+    }
+
+    function toggleVideoBypassActiveState(id, currentState) {
+      db.ref(`videos/${id}/activeStatus`).set(!currentState)
+        .then(() => displayToast("Stream broadcasting state updated successfully!"))
+        .catch(err => displayToast(err.message, true));
+    }
+
+    function deleteBroadcastVideoRecord(id) {
+      if (!confirm("Do you want to delete this broadcast channel record?")) return;
+      
+      db.ref(`videos/${id}`).remove()
+        .then(() => displayToast("Stream decommissioned and deleted successfully."))
+        .catch(err => displayToast(err.message, true));
+    }
+
+
+    // ================= OPERATIONS TWEAKS SETTINGS & PROMO CODES =================
+    function updateCPMSettingVal() {
+      const val = parseInt(document.getElementById('settingCoinsPerMinInp').value, 10);
+      if (isNaN(val) || val <= 0) {
+        displayToast("CPM setting requires positive numeric variables.", true);
+        return;
+      }
+
+      db.ref('adminSettings/coinsPerMin').set(val)
+        .then(() => displayToast("Automated Minute active pulse setting updated globally!"))
+        .catch(err => displayToast(err.message, true));
+    }
+
+    function updateMarqueeAlertBulletin() {
+      const str = document.getElementById('settingMarqueeTextInp').value.trim();
+      if (!str) {
+        displayToast("Bulletin marquee text cannot remain blank grids.", true);
+        return;
+      }
+
+      db.ref('adminSettings/announcements').set(str)
+        .then(() => displayToast("World bulletin update broadcasted successfully!"))
+        .catch(err => displayToast(err.message, true));
+    }
+
+    function generateRandomPromoSeedCode() {
+      const code = "PROMOPAYOUT_" + Math.random().toString(36).substring(2, 6).toUpperCase() + "_" + Math.floor(Math.random() * 900 + 100);
+      document.getElementById('promoCodeGenerateInp').value = code;
+    }
+
+    function commitFreshVoucherPromo() {
+      const code = document.getElementById('promoCodeGenerateInp').value.trim().toUpperCase();
+      const val = parseInt(document.getElementById('promoCodeCoinValueInp').value, 10);
+
+      if (!code || isNaN(val) || val <= 0) {
+        displayToast("Coordinates mismatch: voucher parameters invalid.", true);
+        return;
+      }
+
+      displayToast("Minting promo voucher...");
+      
+      db.ref(`promoCodes/${code}`).set({
+        rewardCoins: val,
+        activeStatus: true,
+        timestamp: Date.now()
+      })
+      .then(() => {
+        displayToast(`Hologram Promo: [${code}] minted verified payload!`);
+        document.getElementById('promoCodeGenerateInp').value = '';
+      })
+      .catch(err => displayToast(err.message, true));
+    }
+
+    function deletePromoVoucherNode(code) {
+      if (!confirm(`Delete promo code [${code}]?`)) return;
+      db.ref(`promoCodes/${code}`).remove()
+        .then(() => displayToast("Voucher revoked from active system."))
+        .catch(err => displayToast(err.message, true));
+    }
+
+    // Audio effects play simulator (similar synth frequencies as user tab)
+    let audioCtx = null;
+    function playAudioSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'click') {
+          osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+          osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+      } catch (err) {}
+    }
+  </script>
+</body>
+</html>
